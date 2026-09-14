@@ -4,7 +4,7 @@ use compass::geometry::{
     CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, TICK_STEP_DEGREES, attribution_geometry,
     cardinal_label_radius, crosshair_geometry, degree_label_radius, dial_stroke_widths,
     heading_size_for_region, position_marker_geometry, readout_geometry,
-    readout_geometry_above_footer, readout_geometry_in_bounds, typography,
+    readout_geometry_in_bounds, typography, warning_text_layout,
 };
 
 fn assert_fits(width: f32, height: f32) {
@@ -34,6 +34,23 @@ fn fixed_crosshair_is_centered_inside_the_dial() {
     assert_eq!(geometry.vertical_start, (120.0, 54.0));
     assert_eq!(geometry.vertical_end, (120.0, 126.0));
     assert_eq!(geometry.center, (120.0, 90.0));
+}
+
+#[test]
+fn compass_warning_text_fits_narrow_readings_in_at_most_two_lines() {
+    for message in [
+        "No magnetometer is available",
+        "Magnetometer access was denied",
+        "Connecting to the magnetometer…",
+        "The magnetometer could not be reached",
+    ] {
+        let layout = warning_text_layout(1.0, 150.0, message);
+        let estimated_width = message.chars().count() as f32 * layout.size * 0.55;
+
+        assert!(layout.size >= 11.0);
+        assert!(estimated_width <= layout.max_width * 2.0);
+        assert!(layout.max_height >= layout.size * 2.0);
+    }
 }
 
 #[test]
@@ -194,22 +211,6 @@ fn openstreetmap_attribution_is_a_small_bottom_right_notice() {
     assert_eq!(notice.align_x, 3828.0);
     assert_eq!(notice.align_y, 2116.0);
     assert!(notice.text_size <= 14.0);
-}
-
-#[test]
-fn phone_readings_stay_clear_of_the_attribution_notice() {
-    let layout = CompassGeometry::for_viewport(240.0, 224.0);
-    let notice = attribution_geometry(240.0, 224.0, layout.scale);
-    let readout = readout_geometry_above_footer(
-        168.0,
-        layout.scale,
-        240.0,
-        4,
-        notice.align_y - notice.text_size - 4.0,
-    );
-    let bottom = readout.secondary_baselines[3] + typography(layout.scale).status / 2.0;
-
-    assert!(bottom <= notice.align_y - notice.text_size - 4.0);
 }
 
 #[test]

@@ -17,6 +17,9 @@
       <stop stop-color="#229FAD"/>
       <stop offset="1" stop-color="#69D6E4"/>
     </linearGradient>
+    <path id="tick-major" d="M128 36V49" stroke-width="1.8"/>
+    <path id="tick-medium" d="M128 36V45" stroke-width="1"/>
+    <path id="tick-minor" d="M128 36V41.5" stroke-width="1"/>
   </defs>
 
   <!-- Broad circular frame and inset dial follow the reference layout. -->
@@ -25,12 +28,128 @@
   <circle cx="128" cy="128" r="105" fill="#102A4C"/>
   <circle cx="128" cy="128" r="98" fill="url(#dial)"/>
 
-  <!-- Four simple axis marks replace the previous dense instrument scale. -->
-  <g stroke="#102A4C" stroke-width="7" stroke-linecap="round">
-    <path d="M128 36V47"/>
-    <path d="M220 128H209"/>
-    <path d="M128 220V209"/>
-    <path d="M36 128H47"/>
+  <!-- The app dial's complete three-degree scale, without labels. -->
+  <g stroke="#102A4C" stroke-linecap="round">
+    <use href="#tick-major" transform="rotate(0 128 128)"/>
+    <use href="#tick-minor" transform="rotate(3 128 128)"/>
+    <use href="#tick-minor" transform="rotate(6 128 128)"/>
+    <use href="#tick-minor" transform="rotate(9 128 128)"/>
+    <use href="#tick-minor" transform="rotate(12 128 128)"/>
+    <use href="#tick-medium" transform="rotate(15 128 128)"/>
+    <use href="#tick-minor" transform="rotate(18 128 128)"/>
+    <use href="#tick-minor" transform="rotate(21 128 128)"/>
+    <use href="#tick-minor" transform="rotate(24 128 128)"/>
+    <use href="#tick-minor" transform="rotate(27 128 128)"/>
+    <use href="#tick-major" transform="rotate(30 128 128)"/>
+    <use href="#tick-minor" transform="rotate(33 128 128)"/>
+    <use href="#tick-minor" transform="rotate(36 128 128)"/>
+    <use href="#tick-minor" transform="rotate(39 128 128)"/>
+    <use href="#tick-minor" transform="rotate(42 128 128)"/>
+    <use href="#tick-medium" transform="rotate(45 128 128)"/>
+    <use href="#tick-minor" transform="rotate(48 128 128)"/>
+    <use href="#tick-minor" transform="rotate(51 128 128)"/>
+    <use href="#tick-minor" transform="rotate(54 128 128)"/>
+    <use href="#tick-minor" transform="rotate(57 128 128)"/>
+    <use href="#tick-major" transform="rotate(60 128 128)"/>
+    <use href="#tick-minor" transform="rotate(63 128 128)"/>
+    <use href="#tick-minor" transform="rotate(66 128 128)"/>
+    <use href="#tick-minor" transform="rotate(69 128 128)"/>
+    <use href="#tick-minor" transform="rotate(72 128 128)"/>
+    <use href="#tick-medium" transform="rotate(75 128 128)"/>
+    <use href="#tick-minor" transform="rotate(78 128 128)"/>
+    <use href="#tick-minor" transform="rotate(81 128 128)"/>
+    <use href="#tick-minor" transform="rotate(84 128 128)"/>
+    <use href="#tick-minor" transform="rotate(87 128 128)"/>
+    <use href="#tick-major" transform="rotate(90 128 128)"/>
+    <use href="#tick-minor" transform="rotate(93 128 128)"/>
+    <use href="#tick-minor" transform="rotate(96 128 128)"/>
+    <use href="#tick-minor" transform="rotate(99 128 128)"/>
+    <use href="#tick-minor" transform="rotate(102 128 128)"/>
+    <use href="#tick-medium" transform="rotate(105 128 128)"/>
+    <use href="#tick-minor" transform="rotate(108 128 128)"/>
+    <use href="#tick-minor" transform="rotate(111 128 128)"/>
+    <use href="#tick-minor" transform="rotate(114 128 128)"/>
+    <use href="#tick-minor" transform="rotate(117 128 128)"/>
+    <use href="#tick-major" transform="rotate(120 128 128)"/>
+    <use href="#tick-minor" transform="rotate(123 128 128)"/>
+    <use href="#tick-minor" transform="rotate(126 128 128)"/>
+    <use href="#tick-minor" transform="rotate(129 128 128)"/>
+    <use href="#tick-minor" transform="rotate(132 128 128)"/>
+    <use href="#tick-medium" transform="rotate(135 128 128)"/>
+    <use href="#tick-minor" transform="rotate(138 128 128)"/>
+    <use href="#tick-minor" transform="rotate(141 128 128)"/>
+    <use href="#tick-minor" transform="rotate(144 128 128)"/>
+    <use href="#tick-minor" transform="rotate(147 128 128)"/>
+    <use href="#tick-major" transform="rotate(150 128 128)"/>
+    <use href="#tick-minor" transform="rotate(153 128 128)"/>
+    <use href="#tick-minor" transform="rotate(156 128 128)"/>
+    <use href="#tick-minor" transform="rotate(159 128 128)"/>
+    <use href="#tick-minor" transform="rotate(162 128 128)"/>
+    <use href="#tick-medium" transform="rotate(165 128 128)"/>
+    <use href="#tick-minor" transform="rotate(168 128 128)"/>
+    <use href="#tick-minor" transform="rotate(171 128 128)"/>
+    <use href="#tick-minor" transform="rotate(174 128 128)"/>
+    <use href="#tick-minor" transform="rotate(177 128 128)"/>
+    <use href="#tick-major" transform="rotate(180 128 128)"/>
+    <use href="#tick-minor" transform="rotate(183 128 128)"/>
+    <use href="#tick-minor" transform="rotate(186 128 128)"/>
+    <use href="#tick-minor" transform="rotate(189 128 128)"/>
+    <use href="#tick-minor" transform="rotate(192 128 128)"/>
+    <use href="#tick-medium" transform="rotate(195 128 128)"/>
+    <use href="#tick-minor" transform="rotate(198 128 128)"/>
+    <use href="#tick-minor" transform="rotate(201 128 128)"/>
+    <use href="#tick-minor" transform="rotate(204 128 128)"/>
+    <use href="#tick-minor" transform="rotate(207 128 128)"/>
+    <use href="#tick-major" transform="rotate(210 128 128)"/>
+    <use href="#tick-minor" transform="rotate(213 128 128)"/>
+    <use href="#tick-minor" transform="rotate(216 128 128)"/>
+    <use href="#tick-minor" transform="rotate(219 128 128)"/>
+    <use href="#tick-minor" transform="rotate(222 128 128)"/>
+    <use href="#tick-medium" transform="rotate(225 128 128)"/>
+    <use href="#tick-minor" transform="rotate(228 128 128)"/>
+    <use href="#tick-minor" transform="rotate(231 128 128)"/>
+    <use href="#tick-minor" transform="rotate(234 128 128)"/>
+    <use href="#tick-minor" transform="rotate(237 128 128)"/>
+    <use href="#tick-major" transform="rotate(240 128 128)"/>
+    <use href="#tick-minor" transform="rotate(243 128 128)"/>
+    <use href="#tick-minor" transform="rotate(246 128 128)"/>
+    <use href="#tick-minor" transform="rotate(249 128 128)"/>
+    <use href="#tick-minor" transform="rotate(252 128 128)"/>
+    <use href="#tick-medium" transform="rotate(255 128 128)"/>
+    <use href="#tick-minor" transform="rotate(258 128 128)"/>
+    <use href="#tick-minor" transform="rotate(261 128 128)"/>
+    <use href="#tick-minor" transform="rotate(264 128 128)"/>
+    <use href="#tick-minor" transform="rotate(267 128 128)"/>
+    <use href="#tick-major" transform="rotate(270 128 128)"/>
+    <use href="#tick-minor" transform="rotate(273 128 128)"/>
+    <use href="#tick-minor" transform="rotate(276 128 128)"/>
+    <use href="#tick-minor" transform="rotate(279 128 128)"/>
+    <use href="#tick-minor" transform="rotate(282 128 128)"/>
+    <use href="#tick-medium" transform="rotate(285 128 128)"/>
+    <use href="#tick-minor" transform="rotate(288 128 128)"/>
+    <use href="#tick-minor" transform="rotate(291 128 128)"/>
+    <use href="#tick-minor" transform="rotate(294 128 128)"/>
+    <use href="#tick-minor" transform="rotate(297 128 128)"/>
+    <use href="#tick-major" transform="rotate(300 128 128)"/>
+    <use href="#tick-minor" transform="rotate(303 128 128)"/>
+    <use href="#tick-minor" transform="rotate(306 128 128)"/>
+    <use href="#tick-minor" transform="rotate(309 128 128)"/>
+    <use href="#tick-minor" transform="rotate(312 128 128)"/>
+    <use href="#tick-medium" transform="rotate(315 128 128)"/>
+    <use href="#tick-minor" transform="rotate(318 128 128)"/>
+    <use href="#tick-minor" transform="rotate(321 128 128)"/>
+    <use href="#tick-minor" transform="rotate(324 128 128)"/>
+    <use href="#tick-minor" transform="rotate(327 128 128)"/>
+    <use href="#tick-major" transform="rotate(330 128 128)"/>
+    <use href="#tick-minor" transform="rotate(333 128 128)"/>
+    <use href="#tick-minor" transform="rotate(336 128 128)"/>
+    <use href="#tick-minor" transform="rotate(339 128 128)"/>
+    <use href="#tick-minor" transform="rotate(342 128 128)"/>
+    <use href="#tick-medium" transform="rotate(345 128 128)"/>
+    <use href="#tick-minor" transform="rotate(348 128 128)"/>
+    <use href="#tick-minor" transform="rotate(351 128 128)"/>
+    <use href="#tick-minor" transform="rotate(354 128 128)"/>
+    <use href="#tick-minor" transform="rotate(357 128 128)"/>
   </g>
 
   <!-- Wide diagonal two-part needle with the reference's open center hub. -->

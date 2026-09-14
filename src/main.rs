@@ -15,9 +15,24 @@ struct Cli {
     #[arg(long, conflicts_with = "demo_heading")]
     demo: bool,
 
+    /// Keep demo mode still at 42 degrees.
+    #[arg(long, requires = "demo", conflicts_with = "demo_heading")]
+    still: bool,
+
     /// Show a fixed heading instead of connecting to SensorProxy.
     #[arg(long, value_name = "DEGREES", value_parser = parse_demo_heading)]
     demo_heading: Option<f32>,
+}
+
+fn app_flags(cli: Cli) -> Flags {
+    Flags {
+        demo_heading: if cli.still {
+            Some(42.0)
+        } else {
+            cli.demo_heading
+        },
+        demo_motion: cli.demo && !cli.still,
+    }
 }
 
 fn parse_demo_heading(value: &str) -> Result<f32, String> {
@@ -48,13 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .min_width(240.0)
                 .min_height(240.0),
         );
-    cosmic::app::run::<CompassApp>(
-        settings,
-        Flags {
-            demo_heading: cli.demo_heading,
-            demo_motion: cli.demo,
-        },
-    )?;
+    cosmic::app::run::<CompassApp>(settings, app_flags(cli))?;
     Ok(())
 }
 
@@ -69,6 +78,17 @@ mod tests {
 
         assert!(cli.demo);
         assert_eq!(cli.demo_heading, None);
+    }
+
+    #[test]
+    fn demo_still_mode_uses_a_fixed_42_degree_heading() {
+        let cli = Cli::try_parse_from(["compass", "--demo", "--still"])
+            .expect("--demo --still should parse");
+        let flags = app_flags(cli);
+
+        assert_eq!(flags.demo_heading, Some(42.0));
+        assert!(!flags.demo_motion);
+        assert!(Cli::try_parse_from(["compass", "--still"]).is_err());
     }
 
     #[test]

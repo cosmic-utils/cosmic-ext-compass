@@ -8,6 +8,8 @@ pub mod rose;
 pub mod sensor;
 
 pub mod geometry {
+    use crate::sensor::TiltReading;
+
     pub const TICK_STEP_DEGREES: usize = 3;
     pub const DEGREE_LABEL_STEP: usize = 30;
     pub const MINOR_TICK_LENGTH_UNITS: f32 = 5.5;
@@ -77,6 +79,27 @@ pub mod geometry {
     }
 
     #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct WarningTextLayout {
+        pub size: f32,
+        pub max_width: f32,
+        pub max_height: f32,
+    }
+
+    #[must_use]
+    pub fn warning_text_layout(scale: f32, region_width: f32, warning: &str) -> WarningTextLayout {
+        let available_width = (region_width - 24.0).max(1.0);
+        let estimated_units = warning.chars().count().max(1) as f32 * 0.55;
+        let size = (typography(scale).cardinal * 1.1)
+            .min((available_width * 1.9) / estimated_units)
+            .max(8.0);
+        WarningTextLayout {
+            size,
+            max_width: available_width,
+            max_height: size * 2.4,
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct HeadingReadoutPositions {
         pub value_end_x: f32,
         pub degree_center_x: f32,
@@ -113,6 +136,27 @@ pub mod geometry {
             vertical_start: (center_x, center_y - half_extent),
             vertical_end: (center_x, center_y + half_extent),
             center: (center_x, center_y),
+        }
+    }
+
+    /// Small accelerometer-driven level mark; the large crosshair remains fixed.
+    #[must_use]
+    pub fn lean_cross_geometry(
+        center_x: f32,
+        center_y: f32,
+        radius: f32,
+        reading: TiltReading,
+    ) -> CrosshairGeometry {
+        let (offset_x, offset_y) = reading.offset_factor();
+        let lean_x = center_x + offset_x * radius;
+        let lean_y = center_y + offset_y * radius;
+        let half_extent = radius * 0.06;
+        CrosshairGeometry {
+            horizontal_start: (lean_x - half_extent, lean_y),
+            horizontal_end: (lean_x + half_extent, lean_y),
+            vertical_start: (lean_x, lean_y - half_extent),
+            vertical_end: (lean_x, lean_y + half_extent),
+            center: (lean_x, lean_y),
         }
     }
 
@@ -333,28 +377,6 @@ pub mod geometry {
             gap * compression,
             secondary_count,
         )
-    }
-
-    #[must_use]
-    pub fn readout_geometry_above_footer(
-        center_y: f32,
-        scale: f32,
-        region_width: f32,
-        secondary_count: usize,
-        maximum_bottom: f32,
-    ) -> ReadoutGeometry {
-        let mut geometry = readout_geometry(center_y, scale, region_width, secondary_count);
-        let sizes = typography(scale);
-        let bottom = geometry.secondary_baselines.last().map_or(
-            geometry.heading_baseline + sizes.heading / 2.0,
-            |baseline| baseline + sizes.status / 2.0,
-        );
-        let shift = (bottom - maximum_bottom).max(0.0);
-        geometry.heading_baseline -= shift;
-        for baseline in &mut geometry.secondary_baselines {
-            *baseline -= shift;
-        }
-        geometry
     }
 
     fn reading_baselines(center_y: f32, scale: f32, region_width: f32) -> (f32, f32) {

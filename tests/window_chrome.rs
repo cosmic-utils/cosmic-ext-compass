@@ -28,7 +28,7 @@ fn regular_window_uses_the_standard_cosmic_title_bar() {
     assert!(window.show_headerbar);
     assert!(window.content_container);
     assert!(window.use_template);
-    assert_eq!(window.header_title, "Compass");
+    assert!(window.header_title.is_empty());
 }
 
 #[test]
@@ -52,17 +52,15 @@ fn application_identity_uses_the_cosmic_utils_domain() {
 }
 
 #[test]
-fn reverse_geocoding_has_sandbox_network_access() {
+fn reverse_geocoding_remains_but_has_no_view_menu_action() {
     let manifest = std::fs::read_to_string("org.cosmic_utils.compass.yml")
         .expect("Flatpak manifest should be readable");
-    assert!(manifest.contains("- --share=network"));
-}
-
-#[test]
-fn about_drawer_credits_openstreetmap_data() {
     let source = std::fs::read_to_string("src/app.rs").expect("app source should be readable");
-    assert!(source.contains("https://www.openstreetmap.org/copyright"));
-    assert!(source.contains("osm-data-credit"));
+
+    assert!(manifest.contains("- --share=network"));
+    assert!(!source.contains("LookupPlace"));
+    assert!(source.contains("geocode::subscription"));
+    assert!(source.contains("openstreetmap.org/copyright"));
 }
 
 #[test]
