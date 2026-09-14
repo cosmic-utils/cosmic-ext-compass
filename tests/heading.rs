@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-use compass::heading::{
-    cardinal_direction, heading_readout, normalize_heading, shortest_delta, smooth_heading,
+use compass::{
+    geometry::heading_readout_positions,
+    heading::{
+        cardinal_direction, heading_readout, heading_readout_parts, normalize_heading,
+        shortest_delta, smooth_heading,
+    },
 };
 
 #[test]
@@ -9,6 +13,21 @@ fn heading_readout_combines_unpadded_degrees_and_direction() {
     assert_eq!(heading_readout(7.0), "7° N");
     assert_eq!(heading_readout(165.0), "165° S");
     assert_eq!(heading_readout(359.6), "0° N");
+}
+
+#[test]
+fn degree_glyph_stays_at_the_reading_center_as_digits_change() {
+    let positions = heading_readout_positions(180.0, 64.0);
+
+    for heading in [7.0, 42.0, 165.0, 359.6] {
+        let parts = heading_readout_parts(heading);
+        assert_eq!(positions.degree_center_x, 180.0);
+        assert!(!parts.degrees.contains('°'));
+        assert!(!parts.direction.contains('°'));
+    }
+
+    assert!(positions.value_end_x < positions.degree_center_x);
+    assert!(positions.direction_start_x > positions.degree_center_x);
 }
 
 #[test]

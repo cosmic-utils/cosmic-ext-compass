@@ -3,9 +3,9 @@
 use crate::{
     geometry::{
         CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, TICK_STEP_DEGREES,
-        heading_size_for_region, typography,
+        heading_readout_positions, heading_size_for_region, typography,
     },
-    heading::heading_readout,
+    heading::heading_readout_parts,
 };
 use cosmic::{
     Renderer, Theme,
@@ -134,17 +134,44 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
                 .with_width(3.0 * scale),
         );
 
-        let heading_text = self
-            .heading
-            .map_or_else(|| "—°".to_owned(), heading_readout);
-        let mut text = canvas::Text::from(heading_text);
-        text.position = Point::new(layout.heading_x, layout.heading_baseline);
-        text.color = foreground;
-        text.size = heading_size_for_region(scale, reading_width).into();
-        text.max_width = (reading_width - 16.0).max(1.0);
-        text.align_x = Alignment::Center;
-        text.align_y = Vertical::Center;
-        frame.fill_text(text);
+        let (degrees, direction) = self.heading.map_or_else(
+            || ("—".to_owned(), ""),
+            |heading| {
+                let parts = heading_readout_parts(heading);
+                (parts.degrees, parts.direction)
+            },
+        );
+        let heading_size = heading_size_for_region(scale, reading_width);
+        let positions = heading_readout_positions(layout.heading_x, heading_size);
+        let side_width = (reading_width / 2.0 - 8.0).max(1.0);
+
+        let mut value = canvas::Text::from(degrees);
+        value.position = Point::new(positions.value_end_x, layout.heading_baseline);
+        value.color = foreground;
+        value.size = heading_size.into();
+        value.max_width = side_width;
+        value.align_x = Alignment::Right;
+        value.align_y = Vertical::Center;
+        frame.fill_text(value);
+
+        let mut degree = canvas::Text::from("°");
+        degree.position = Point::new(positions.degree_center_x, layout.heading_baseline);
+        degree.color = foreground;
+        degree.size = heading_size.into();
+        degree.align_x = Alignment::Center;
+        degree.align_y = Vertical::Center;
+        frame.fill_text(degree);
+
+        if !direction.is_empty() {
+            let mut direction = canvas::Text::from(direction);
+            direction.position = Point::new(positions.direction_start_x, layout.heading_baseline);
+            direction.color = foreground;
+            direction.size = heading_size.into();
+            direction.max_width = side_width;
+            direction.align_x = Alignment::Left;
+            direction.align_y = Vertical::Center;
+            frame.fill_text(direction);
+        }
 
         let mut status = canvas::Text::from(self.status.as_str());
         status.position = Point::new(layout.heading_x, layout.status_baseline);

@@ -38,6 +38,24 @@ pub mod geometry {
             .min((available_width / 4.2).max(28.0))
     }
 
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct HeadingReadoutPositions {
+        pub value_end_x: f32,
+        pub degree_center_x: f32,
+        pub direction_start_x: f32,
+    }
+
+    /// Anchors the degree glyph at the center of the readings region so the
+    /// readout remains visually stable as the digit count and direction vary.
+    #[must_use]
+    pub fn heading_readout_positions(center_x: f32, text_size: f32) -> HeadingReadoutPositions {
+        HeadingReadoutPositions {
+            value_end_x: center_x - text_size * 0.20,
+            degree_center_x: center_x,
+            direction_start_x: center_x + text_size * 0.35,
+        }
+    }
+
     /// High-level composition chosen for the available canvas.
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum CompassLayout {
@@ -143,11 +161,28 @@ pub mod geometry {
 }
 
 pub mod heading {
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct HeadingReadoutParts {
+        pub degrees: String,
+        pub direction: &'static str,
+    }
+
+    /// Separates the changing portions of the primary readout so its degree
+    /// glyph can be rendered at a fixed horizontal anchor.
+    #[must_use]
+    pub fn heading_readout_parts(heading: f32) -> HeadingReadoutParts {
+        let rounded = heading.round().rem_euclid(360.0);
+        HeadingReadoutParts {
+            degrees: format!("{rounded:.0}"),
+            direction: cardinal_direction(heading),
+        }
+    }
+
     /// Formats the primary readout with unpadded degrees and its nearest direction.
     #[must_use]
     pub fn heading_readout(heading: f32) -> String {
-        let rounded = heading.round().rem_euclid(360.0);
-        format!("{rounded:.0}° {}", cardinal_direction(heading))
+        let parts = heading_readout_parts(heading);
+        format!("{}° {}", parts.degrees, parts.direction)
     }
 
     /// Returns the nearest of the eight familiar compass directions.
