@@ -1,0 +1,44 @@
+app-id: io.github.cosmic_utils.compass
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+base: com.system76.Cosmic.BaseApp
+base-version: stable
+command: compass
+
+finish-args:
+  - --socket=wayland
+  - --share=ipc
+  - --socket=fallback-x11
+  - --device=dri
+  - --system-talk-name=net.hadess.SensorProxy
+
+modules:
+  - name: compass
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/compass/cargo
+        CARGO_TARGET_DIR: /run/build/compass/target
+    build-commands:
+      - test ! -f .flatpak-version || export COMPASS_VERSION=$(cat .flatpak-version); cargo --offline build --release
+      - install -Dm755 target/release/compass -t /app/bin/
+      - install -Dm644 resources/io.github.cosmic_utils.compass.desktop -t /app/share/applications/
+      - install -Dm644 resources/io.github.cosmic_utils.compass.metainfo.xml -t /app/share/metainfo/
+      - install -Dm644 resources/icons/hicolor/scalable/apps/io.github.cosmic_utils.compass.svg -t /app/share/icons/hicolor/scalable/apps/
+      - install -Dm644 resources/icons/hicolor/16x16/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/16x16/apps/
+      - install -Dm644 resources/icons/hicolor/24x24/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/24x24/apps/
+      - install -Dm644 resources/icons/hicolor/32x32/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/32x32/apps/
+      - install -Dm644 resources/icons/hicolor/48x48/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/48x48/apps/
+      - install -Dm644 resources/icons/hicolor/64x64/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/64x64/apps/
+      - install -Dm644 resources/icons/hicolor/128x128/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/128x128/apps/
+      - install -Dm644 resources/icons/hicolor/256x256/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/256x256/apps/
+      - install -Dm644 resources/icons/hicolor/512x512/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/512x512/apps/
+      - install -Dm644 resources/icons/hicolor/1024x1024/apps/io.github.cosmic_utils.compass.png -t /app/share/icons/hicolor/1024x1024/apps/
+    sources:
+      - type: dir
+        path: .
+      - cargo-sources.json

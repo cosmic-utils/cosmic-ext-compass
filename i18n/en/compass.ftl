@@ -1,0 +1,25 @@
+compass = Compass
+view = View
+menu-settings = Settings…
+menu-about = About Compass…
+settings-title = Settings
+settings-appearance = Appearance
+settings-theme = Theme
+match-desktop = Match Desktop
+dark = Dark
+light = Light
+settings-reset-all = Reset all settings
+website = Website
+repository = Repository
+support = Support
+status-connecting = Connecting to the compass sensor…
+status-magnetic-north = Magnetic north
+status-unavailable = No compass sensor is available
+status-access-denied = Sensor access was denied. Start Compass from an active desktop session.
+status-error = The compass sensor could not be reached
+status-demo = Demonstration heading
+
+desktop-comment = Find magnetic north with a clear, responsive compass
+desktop-keywords = compass;heading;direction;north;sensor;
+metainfo-summary = A responsive compass for Linux desktops and phones
+metainfo-description = Compass displays magnetic heading from SensorProxy in a clean interface designed for compact phones and desktop windows.

@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, arch: x86_64, cross: false }
+          - { target: aarch64-unknown-linux-gnu, arch: aarch64, cross: true }
+          - { target: armv7-unknown-linux-gnueabihf, arch: armhf, cross: true }
+          - { target: riscv64gc-unknown-linux-gnu, arch: riscv64, cross: true }
+          - { target: x86_64-unknown-linux-musl, arch: x86_64-musl, cross: true }
+          - { target: aarch64-unknown-linux-musl, arch: aarch64-musl, cross: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { fetch-depth: 0 }
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.98.0
+          targets: ${{ matrix.target }}
+      - if: ${{ !matrix.cross }}
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev libxkbcommon-dev
+      - if: ${{ matrix.cross }}
+        run: cargo install cross --git https://github.com/cross-rs/cross --rev 8c1a8aa4b661711f4b7b6ac07c2e8929ce2f7d27
+      - run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --locked --target ${{ matrix.target }}
+      - run: tar -C target/${{ matrix.target }}/release -czf compass-${{ matrix.arch }}-linux.tar.gz compass
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: binary-${{ matrix.arch }}
+          path: compass-${{ matrix.arch }}-linux.tar.gz
+
+  flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
+      - run: sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+      - run: sudo flatpak install -y flathub org.freedesktop.Sdk//25.08 org.freedesktop.Platform//25.08 org.freedesktop.Sdk.Extension.rust-stable//25.08 com.system76.Cosmic.BaseApp//stable
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - run: just flatpak-bundle x86_64
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: flatpak-x86_64
+          path: compass-x86_64.flatpak
+
+  publish:
+    needs: [binaries, flatpak]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { fetch-depth: 0 }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: assets
+          merge-multiple: true
+      - env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git archive --format=zip --prefix="compass-${RELEASE_TAG}/" -o "assets/compass-${RELEASE_TAG}-source.zip" HEAD
+      - env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version=${RELEASE_TAG#v}
+          source_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${RELEASE_TAG}.tar.gz"
+          curl -fsSL "$source_url" -o /tmp/source.tar.gz
+          checksum=$(sha512sum /tmp/source.tar.gz | cut -d' ' -f1)
+          sed -e "s/@@VERSION@@/$version/g" -e "s/@@CHECKSUM@@/$checksum/g" .github/APKBUILD.template > assets/APKBUILD
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release create "$RELEASE_TAG" --generate-notes --title "Compass $RELEASE_TAG" assets/*

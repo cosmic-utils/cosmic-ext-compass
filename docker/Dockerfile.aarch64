@@ -1,0 +1,2 @@
+FROM ghcr.io/cross-rs/aarch64-unknown-linux-gnu@sha256:99294ae75048aa07d00bb4f1a18a017e0812ff25753768d21d5938bf7562b40a
+RUN dpkg --add-architecture arm64 && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libwayland-dev:arm64 libxkbcommon-dev:arm64 && rm -rf /var/lib/apt/lists/*

@@ -1,0 +1,38 @@
+name: Update Flatpak runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Freedesktop runtime version
+        required: true
+        type: string
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - env:
+          RUNTIME_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import re
+          version = os.environ['RUNTIME_VERSION']
+          if not re.fullmatch(r'[0-9]{2}\.[0-9]{2}', version):
+              raise SystemExit('runtime version must have the form YY.MM')
+          path = Path('io.github.cosmic_utils.compass.yml')
+          text = path.read_text()
+          text = re.sub(r"runtime-version: '[^']+'", f"runtime-version: '{version}'", text)
+          path.write_text(text)
+          PY
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          commit-message: 'build: update Flatpak runtime to ${{ inputs.version }}'
+          title: 'build: update Flatpak runtime to ${{ inputs.version }}'
+          branch: update-flatpak-runtime-${{ inputs.version }}

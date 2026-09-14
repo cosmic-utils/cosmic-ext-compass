@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Compass
+Name[de]=Kompass
+Comment=Find magnetic north with a clear, responsive compass
+Comment[de]=Magnetisch Nord mit einem übersichtlichen Kompass finden
+Keywords=compass;heading;direction;north;sensor;
+Keywords[de]=Kompass;Kurs;Richtung;Norden;Sensor;
+Exec=compass
+Icon=io.github.cosmic_utils.compass
+Terminal=false
+Type=Application
+Categories=Utility;
+StartupNotify=true
+StartupWMClass=io.github.cosmic_utils.compass

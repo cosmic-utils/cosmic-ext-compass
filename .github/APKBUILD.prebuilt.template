@@ -1,0 +1,20 @@
+# Packaging-only recipe for a prebuilt binary
+pkgname=cosmic-ext-compass
+pkgver=@@VERSION@@
+pkgrel=0
+pkgdesc="Responsive magnetic compass for Linux"
+url="https://cosmic-utils.org"
+arch="all"
+license="GPL-3.0-only"
+
+build() { :; }
+package() {
+    install -Dm0755 /prebuilt/compass "$pkgdir/usr/bin/compass"
+    cd /src
+    install -Dm0644 resources/io.github.cosmic_utils.compass.desktop "$pkgdir/usr/share/applications/io.github.cosmic_utils.compass.desktop"
+    install -Dm0644 resources/io.github.cosmic_utils.compass.metainfo.xml "$pkgdir/usr/share/metainfo/io.github.cosmic_utils.compass.metainfo.xml"
+    install -Dm0644 resources/icons/hicolor/scalable/apps/io.github.cosmic_utils.compass.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.cosmic_utils.compass.svg"
+    for size in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512 1024x1024; do
+        install -Dm0644 "resources/icons/hicolor/$size/apps/io.github.cosmic_utils.compass.png" "$pkgdir/usr/share/icons/hicolor/$size/apps/io.github.cosmic_utils.compass.png"
+    done
+}

@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Compass</title>
+  <defs>
+    <linearGradient id="frame" x1="48" y1="228" x2="208" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A252D2"/>
+      <stop offset="1" stop-color="#BE6DEE"/>
+    </linearGradient>
+    <linearGradient id="dial" x1="62" y1="54" x2="200" y2="214" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAFCFF"/>
+      <stop offset="1" stop-color="#E4F0FF"/>
+    </linearGradient>
+    <linearGradient id="north" x1="111" y1="112" x2="191" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D38F00"/>
+      <stop offset="1" stop-color="#FFAD00"/>
+    </linearGradient>
+    <linearGradient id="south" x1="145" y1="145" x2="65" y2="191" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#229FAD"/>
+      <stop offset="1" stop-color="#69D6E4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Broad circular frame and inset dial follow the reference layout. -->
+  <circle cx="128" cy="128" r="124" fill="#001534"/>
+  <circle cx="128" cy="128" r="118" fill="url(#frame)"/>
+  <circle cx="128" cy="128" r="105" fill="#102A4C"/>
+  <circle cx="128" cy="128" r="98" fill="url(#dial)"/>
+
+  <!-- Four simple axis marks replace the previous dense instrument scale. -->
+  <g stroke="#102A4C" stroke-width="7" stroke-linecap="round">
+    <path d="M128 36V47"/>
+    <path d="M220 128H209"/>
+    <path d="M128 220V209"/>
+    <path d="M36 128H47"/>
+  </g>
+
+  <!-- Wide diagonal two-part needle with the reference's open center hub. -->
+  <path d="M105 105L192 64L151 151Z" fill="url(#north)" stroke="#102A4C" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M105 105L64 192L151 151Z" fill="url(#south)" stroke="#102A4C" stroke-width="7" stroke-linejoin="round"/>
+  <circle cx="128" cy="128" r="23" fill="url(#dial)" stroke="#102A4C" stroke-width="7"/>
+</svg>

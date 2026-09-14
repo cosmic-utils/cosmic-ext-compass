@@ -1,0 +1,40 @@
+[package]
+name = "compass"
+version = "0.1.0"
+rust-version = "1.98"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "A responsive compass for Linux desktops and phones"
+homepage = "https://cosmic-utils.org"
+repository = "https://github.com/cosmic-utils/cosmic-ext-compass"
+authors = ["Frederic Laing <frederic.laing.development@gmail.com>"]
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+futures = "0.3.32"
+i18n-embed = { version = "0.16.0", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.10.0"
+open = "5.3.2"
+rust-embed = "8.11.0"
+tokio = { version = "1.53.1", features = ["time"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+zbus = { version = "5.16.0", default-features = false, features = ["tokio"] }
+
+[dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic.git"
+default-features = false
+features = ["a11y", "about", "tokio", "winit", "wayland", "x11", "wgpu"]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = false
+debug = 1
+
+[profile.release-fast]
+inherits = "release"
+lto = false
+codegen-units = 16
+debug = 0
+opt-level = 1

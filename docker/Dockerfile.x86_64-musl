@@ -1,0 +1,21 @@
+# Native x86_64 musl build image with only GUI runtime headers.
+FROM alpine@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
+
+RUN apk add --no-cache \
+    alpine-keys \
+    build-base \
+    curl \
+    pkgconf \
+    wayland-dev \
+    libxkbcommon-dev
+
+ARG RUST_VERSION=1.98.0
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh && \
+    printf '%s  %s\n' 7d0ea0f8eba7fa1ebfe998091cd7ec4501e33ec5ca6b884eb4d894d7da5170af /tmp/rustup-init.sh | sha256sum -c - && \
+    sh /tmp/rustup-init.sh -y --default-toolchain "${RUST_VERSION}" --target x86_64-unknown-linux-musl && \
+    rm /tmp/rustup-init.sh
+
+ENV PATH="/root/.cargo/bin:${PATH}" \
+    CC_x86_64_unknown_linux_musl=gcc \
+    PKG_CONFIG_ALLOW_CROSS=1 \
+    RUSTFLAGS="-C target-feature=-crt-static"

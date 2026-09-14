@@ -1,0 +1,27 @@
+name: Regenerate derived files
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['Cargo.lock', 'i18n/**', 'scripts/gen-metadata.py']
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.98.0
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - run: pip install aiohttp==3.14.3 tomlkit==0.15.1
+      - run: just generate
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add resources cargo-sources.json
+          git diff --staged --quiet || git commit -m 'chore: regenerate derived files'
+          git push

@@ -1,0 +1,2 @@
+FROM ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf@sha256:2d3df5c06507fd14f29133d6ec6abbd662829731367cc8bbf2861d83eb533ef5
+RUN dpkg --add-architecture armhf && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libwayland-dev:armhf libxkbcommon-dev:armhf && rm -rf /var/lib/apt/lists/*

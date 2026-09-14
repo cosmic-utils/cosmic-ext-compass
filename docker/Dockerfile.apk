@@ -1,0 +1,4 @@
+FROM alpine@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
+RUN apk add --no-cache alpine-sdk sudo && adduser -D builder && addgroup builder abuild && echo 'builder ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builder && chmod 440 /etc/sudoers.d/builder && sudo -Hu builder abuild-keygen -a -n
+COPY .github/APKBUILD.prebuilt.template /APKBUILD.template
+CMD ["sh", "-c", "set -eu; version=$(sed -n 's/^version = \"\([^\"]*\)\"/\1/p' /src/Cargo.toml | sed -n '1p'); mkdir -p /home/builder/package; sed s/@@VERSION@@/$version/g /APKBUILD.template >/home/builder/package/APKBUILD; chown -R builder:builder /home/builder/package; cd /home/builder/package; sudo -Hu builder abuild -r; mkdir -p /out; cp /home/builder/packages/*/cosmic-ext-compass-*.apk /out/"]
