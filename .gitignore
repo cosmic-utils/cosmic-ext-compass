@@ -16,6 +16,7 @@ debian/*
 .flatpak-builder
 .flatpak-venv
 .flatpak-version
+.preview-cache/
 build-dir
 repo
 flatpak-cargo-generator.py

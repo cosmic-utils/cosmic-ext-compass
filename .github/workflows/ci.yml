@@ -32,6 +32,16 @@ jobs:
       - uses: Swatinem/rust-cache@49a0bdc70d2e1b713ca9e2869b211fcce03d3c1c # v2
       - run: just check
 
+  flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - run: just flatpak-deps
+      - run: just flatpak-bundle x86_64
+
   build:
     needs: check
     runs-on: ubuntu-latest

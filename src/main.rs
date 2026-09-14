@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use clap::Parser;
-use compass::app::{CompassApp, Flags};
+use compass::app::{AppTheme, CompassApp, Flags};
 use i18n_embed::DesktopLanguageRequester;
 
 #[derive(Debug, Parser)]
@@ -22,6 +22,29 @@ struct Cli {
     /// Show a fixed heading instead of connecting to SensorProxy.
     #[arg(long, value_name = "DEGREES", value_parser = parse_demo_heading)]
     demo_heading: Option<f32>,
+
+    /// Screenshot harness only: override the initial window size.
+    #[arg(long, hide = true, value_name = "WIDTHxHEIGHT", value_parser = parse_window_size)]
+    preview_window: Option<(f32, f32)>,
+
+    /// Screenshot harness only: force a deterministic light or dark theme.
+    #[arg(long, hide = true, value_enum)]
+    preview_theme: Option<PreviewTheme>,
+}
+
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum PreviewTheme {
+    Dark,
+    Light,
+}
+
+impl From<PreviewTheme> for AppTheme {
+    fn from(theme: PreviewTheme) -> Self {
+        match theme {
+            PreviewTheme::Dark => Self::Dark,
+            PreviewTheme::Light => Self::Light,
+        }
+    }
 }
 
 fn app_flags(cli: Cli) -> Flags {
@@ -32,6 +55,7 @@ fn app_flags(cli: Cli) -> Flags {
             cli.demo_heading
         },
         demo_motion: cli.demo && !cli.still,
+        initial_theme: cli.preview_theme.map(Into::into),
     }
 }
 
@@ -45,6 +69,22 @@ fn parse_demo_heading(value: &str) -> Result<f32, String> {
     Ok(degrees.rem_euclid(360.0))
 }
 
+fn parse_window_size(value: &str) -> Result<(f32, f32), String> {
+    let (width, height) = value
+        .split_once('x')
+        .ok_or_else(|| "window size must be WIDTHxHEIGHT".to_owned())?;
+    let width = width
+        .parse::<f32>()
+        .map_err(|error| format!("invalid window width: {error}"))?;
+    let height = height
+        .parse::<f32>()
+        .map_err(|error| format!("invalid window height: {error}"))?;
+    if !width.is_finite() || !height.is_finite() || width < 240.0 || height < 240.0 {
+        return Err("window dimensions must be finite and at least 240".to_owned());
+    }
+    Ok((width, height))
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -56,8 +96,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     compass::i18n::init(&DesktopLanguageRequester::requested_languages());
 
+    let window_size = cli.preview_window.unwrap_or((360.0, 640.0));
     let settings = cosmic::app::Settings::default()
-        .size(cosmic::iced::Size::new(360.0, 640.0))
+        .size(cosmic::iced::Size::new(window_size.0, window_size.1))
         .size_limits(
             cosmic::iced::Limits::NONE
                 .min_width(240.0)
@@ -89,6 +130,27 @@ mod tests {
         assert_eq!(flags.demo_heading, Some(42.0));
         assert!(!flags.demo_motion);
         assert!(Cli::try_parse_from(["compass", "--still"]).is_err());
+    }
+
+    #[test]
+    fn preview_options_produce_deterministic_initial_state() {
+        let cli = Cli::try_parse_from([
+            "compass",
+            "--demo-heading",
+            "315",
+            "--preview-window",
+            "400x880",
+            "--preview-theme",
+            "dark",
+        ])
+        .expect("preview harness options should parse");
+        let flags = app_flags(cli);
+
+        assert_eq!(flags.demo_heading, Some(315.0));
+        assert_eq!(flags.initial_theme, Some(AppTheme::Dark));
+        assert_eq!(parse_window_size("400x880"), Ok((400.0, 880.0)));
+        assert!(parse_window_size("200x880").is_err());
+        assert!(parse_window_size("400").is_err());
     }
 
     #[test]

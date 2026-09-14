@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Reproducible, software-rendered environment for Compass preview screenshots.
+FROM registry.fedoraproject.org/fedora@sha256:e0745d8f4d695934225d1b7bb7e161c7612dac8009f52e1bd60f061327d71ea0
+
+COPY preview/environment.lock /tmp/expected-environment.lock
+ARG VERIFY_LOCKS=1
+
+RUN dnf install -y --setopt=install_weak_deps=False \
+        rust cargo gcc gcc-c++ pkgconf-pkg-config git \
+        wayland-devel libxkbcommon-devel dbus-devel \
+        sway grim wtype jq dbus-daemon procps-ng \
+        mesa-vulkan-drivers vulkan-loader mesa-libGL mesa-libEGL mesa-dri-drivers \
+        cosmic-icon-theme adwaita-icon-theme hicolor-icon-theme open-sans-fonts \
+        ImageMagick oxipng \
+    && dnf clean all
+
+# Seed the actual COSMIC light and dark defaults instead of libcosmic's fallback
+# palette. Installing cosmic-settings would pull in the whole settings app.
+RUN dnf install -y --setopt=install_weak_deps=False 'dnf-command(download)' cpio \
+    && dnf download --destdir /tmp/cosmic-theme cosmic-settings-1.8.0-1.fc44.x86_64 \
+    && ( cd / && rpm2cpio /tmp/cosmic-theme/cosmic-settings-*.rpm \
+           | cpio -idmv './usr/share/cosmic/com.system76.CosmicTheme.*' ) \
+    && test -f /usr/share/cosmic/com.system76.CosmicTheme.Dark/v1/accent \
+    && test -f /usr/share/cosmic/com.system76.CosmicTheme.Light/v1/accent \
+    && rm -rf /tmp/cosmic-theme \
+    && dnf clean all \
+    && rpm -qa --qf '%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+         | LC_ALL=C sort > /tmp/current-environment.lock \
+    && if [ "$VERIFY_LOCKS" = 1 ]; then \
+         test "$(sha256sum /tmp/current-environment.lock | cut -d' ' -f1)" \
+              = "$(sha256sum /tmp/expected-environment.lock | cut -d' ' -f1)"; \
+       fi
+
+RUN setcap -r /usr/bin/sway
+ENV VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
+    WGPU_BACKEND=vulkan \
+    LIBGL_ALWAYS_SOFTWARE=1 \
+    WLR_BACKENDS=headless \
+    WLR_RENDERER=pixman \
+    WLR_LIBINPUT_NO_DEVICES=1 \
+    CARGO_TERM_COLOR=always \
+    RUST_LOG=warn
+WORKDIR /src
+ENTRYPOINT ["/bin/bash"]
+CMD ["-c", "preview/capture-previews.sh /tmp/shots && preview/sync-previews.sh /tmp/shots preview"]

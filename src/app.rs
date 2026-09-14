@@ -88,6 +88,7 @@ fn demo_motion_heading(elapsed_seconds: f32) -> f32 {
 pub struct Flags {
     pub demo_heading: Option<f32>,
     pub demo_motion: bool,
+    pub initial_theme: Option<AppTheme>,
 }
 
 #[derive(Clone, Debug)]
@@ -377,6 +378,12 @@ impl Application for CompassApp {
         core.window.content_container = true;
         core.window.use_template = true;
         let about = about_widget();
+        let app_theme = flags.initial_theme.unwrap_or_default();
+        let theme_task = if flags.initial_theme.is_some() {
+            cosmic::command::set_theme(app_theme.theme())
+        } else {
+            cosmic::app::Task::none()
+        };
         let demo = flags.demo_motion || flags.demo_heading.is_some();
         let initial_heading = flags
             .demo_heading
@@ -392,7 +399,7 @@ impl Application for CompassApp {
                 about,
                 menu_key_binds: HashMap::new(),
                 context_page: ContextPage::About,
-                app_theme: AppTheme::default(),
+                app_theme,
                 state: if demo {
                     SensorState::Demo
                 } else {
@@ -413,7 +420,7 @@ impl Application for CompassApp {
                 demo_motion: flags.demo_motion,
                 demo_elapsed: Duration::ZERO,
             },
-            cosmic::app::Task::none(),
+            theme_task,
         )
     }
 
@@ -706,6 +713,7 @@ mod tests {
             Flags {
                 demo_heading: None,
                 demo_motion: false,
+                initial_theme: None,
             },
         );
 
@@ -725,6 +733,7 @@ mod tests {
             Flags {
                 demo_heading: Some(165.0),
                 demo_motion: false,
+                initial_theme: None,
             },
         );
 
@@ -917,6 +926,7 @@ mod tests {
             Flags {
                 demo_heading: None,
                 demo_motion: false,
+                initial_theme: None,
             },
         );
         let reading = crate::sensor::TiltReading::from_proxy_values("left-up", "tilted-up")

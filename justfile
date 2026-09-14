@@ -35,9 +35,22 @@ run *args:
 demo:
     env RUST_LOG=compass=info cargo run --profile release-fast -- --demo
 
+# Regenerate derived text, icons and dependency metadata. Preview screenshots
+# are intentionally separate because they require a pinned graphical container.
 generate: generate-metadata generate-icons flatpak-cargo-sources
 generate-metadata:
     python3 scripts/gen-metadata.py
+
+# Capture deterministic desktop and phone screenshots, then refresh
+# their gallery and localized AppStream captions. Narrow a run with SHOTS,
+# VARIANTS_FILTER or LOCALES_FILTER, for example:
+#   SHOTS=002 LOCALES_FILTER=none just generate-previews
+generate-previews *args: && generate-metadata
+	preview/generate-previews.sh {{args}}
+
+# Deliberately refresh the package lock, then verify the image.
+update-preview-environment:
+	preview/update-environment-locks.sh
 generate-icons:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -51,6 +64,8 @@ generate-icons:
 validate-metadata:
     desktop-file-validate resources/{{APPID}}.desktop
     appstreamcli validate --no-net resources/{{APPID}}.metainfo.xml
+validate-metadata-urls:
+    appstreamcli validate resources/{{APPID}}.metainfo.xml
 
 install:
     install -Dm0755 {{bin-src}} {{base-dir}}/bin/{{name}}
@@ -93,15 +108,44 @@ flatpak-cargo-sources:
         .flatpak-venv/bin/python flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
     fi
 
+flatpak-runtime-version:
+    @python3 -c "text=open('{{APPID}}.yml', encoding='utf-8').read(); value=next(line for line in text.splitlines() if line.startswith('runtime-version:')); print(value.split(':', 1)[1].strip().strip(chr(39) + chr(34)))"
+
+# Install the user-scoped runtime, SDK, Rust extension and COSMIC base app.
+flatpak-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    runtime="$(just flatpak-runtime-version)"
+    flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    flatpak install --user --noninteractive -y flathub \
+        "org.freedesktop.Platform//$runtime" \
+        "org.freedesktop.Sdk//$runtime" \
+        "org.freedesktop.Sdk.Extension.rust-stable//$runtime" \
+        com.system76.Cosmic.BaseApp//stable
+
 flatpak-build: flatpak-cargo-sources
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'rm -f .flatpak-version' EXIT
     just get-version > .flatpak-version
     flatpak-builder --user --install --force-clean build-dir {{APPID}}.yml
-    rm -f .flatpak-version
+# Rebuild and install a clean user-scoped Flatpak.
+flatpak-install:
+    just flatpak-uninstall
+    just flatpak-deps
+    just flatpak-build
+# Remove the user-scoped app and its generated extension refs when present.
+flatpak-uninstall:
+    flatpak uninstall --user --noninteractive -y {{APPID}} 2>/dev/null || true
+    flatpak uninstall --user --noninteractive -y {{APPID}}.Debug 2>/dev/null || true
+    flatpak uninstall --user --noninteractive -y {{APPID}}.Locale 2>/dev/null || true
 flatpak-bundle arch='x86_64':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'rm -f .flatpak-version' EXIT
     just get-version > .flatpak-version
     flatpak-builder --repo=repo --force-clean --arch={{arch}} build-dir {{APPID}}.yml
     flatpak build-bundle repo {{name}}-{{arch}}.flatpak {{APPID}} --arch={{arch}}
-    rm -f .flatpak-version
 flatpak-run:
     flatpak run {{APPID}}
 flatpak-clean:

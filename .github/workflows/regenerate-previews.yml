@@ -1,0 +1,191 @@
+name: Regenerate Preview Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'i18n/**'
+      - 'justfile'
+      - 'preview/shots.conf'
+      - 'preview/generate-previews.sh'
+      - 'preview/update-environment-locks.sh'
+      - 'preview/capture-previews.sh'
+      - 'preview/sync-previews.sh'
+      - 'preview/Containerfile'
+      - 'preview/environment.lock'
+      - 'scripts/gen-metadata.py'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Re-capture every screenshot whose pixels differ at all
+        type: boolean
+        default: false
+
+concurrency:
+  group: regenerate-previews
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Regenerate screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository and LFS objects
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - name: Cache Rust build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .preview-cache
+          key: preview-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            preview-rust-
+
+      - name: Cache container image
+        id: image-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/preview-image.tar
+          key: preview-image-${{ hashFiles('preview/Containerfile', 'preview/*.lock', 'preview/update-environment-locks.sh') }}
+
+      - name: Build or load container image
+        run: |
+          if [ -f ~/preview-image.tar ]; then
+            podman load -i ~/preview-image.tar
+          else
+            podman build -t compass-previews -f preview/Containerfile .
+            podman save -o ~/preview-image.tar compass-previews
+          fi
+
+      - name: Install just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+
+      - name: Regenerate screenshots
+        env:
+          CONTAINER_ENGINE: podman
+          NO_BUILD_IMAGE: '1'
+          PREVIEW_FUZZ: ${{ inputs.force && '0' || '' }}
+          PREVIEW_THRESHOLD: ${{ inputs.force && '0' || '' }}
+          PREVIEW_TILE_THRESHOLD: ${{ inputs.force && '0' || '' }}
+        run: just generate-previews
+
+      - name: Upload generated files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: generated-previews
+          path: |
+            preview/README.md
+            preview/preview-*.png
+            preview/variants/*.png
+            preview/locales/**/*.png
+            resources/org.cosmic_utils.compass.metainfo.xml
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Open preview update PR
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Download generated files
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: generated-previews
+          path: generated
+
+      - name: Open pull request if screenshots changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          source_dir="$PWD/generated"
+          publish_root="$(mktemp -d)"
+          trap 'rm -rf "$publish_root"' EXIT
+          publish_dir="$publish_root/repository"
+
+          # Publish from a fresh clone. The build container can write to the
+          # checkout, so never expose credentials or run Git hooks/configuration
+          # from that checkout after building dependencies.
+          gh auth setup-git
+          gh repo clone "$GITHUB_REPOSITORY" "$publish_dir" -- --depth=1
+          git -C "$publish_dir" lfs install --local
+
+          while IFS= read -r -d '' path; do
+            rm -f "$publish_dir/$path"
+          done < <(git -C "$publish_dir" ls-files -z \
+            'preview/preview-*.png' \
+            'preview/variants/*.png' \
+            ':(glob)preview/locales/**/*.png')
+
+          cp "$source_dir/preview/README.md" "$publish_dir/preview/README.md"
+          shopt -s globstar nullglob
+          for image in "$source_dir"/preview/**/*.png; do
+            relative="${image#"$source_dir"/}"
+            if [[ ! -f "$image" || -L "$image" ]]; then
+              echo "Refusing unexpected screenshot path: $relative" >&2
+              exit 1
+            fi
+            mkdir -p "$publish_dir/$(dirname "$relative")"
+            cp "$image" "$publish_dir/$relative"
+          done
+          cp "$source_dir/resources/org.cosmic_utils.compass.metainfo.xml" \
+            "$publish_dir/resources/org.cosmic_utils.compass.metainfo.xml"
+
+          cd "$publish_dir"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          branch=ci/regenerate-previews
+          git add preview resources/org.cosmic_utils.compass.metainfo.xml
+
+          if git diff --cached --quiet; then
+            pr_number="$(gh api \
+              "/repos/$GITHUB_REPOSITORY/pulls?state=open&head=$GITHUB_REPOSITORY_OWNER:$branch" \
+              --jq '.[0].number // empty')"
+            if [ -n "$pr_number" ]; then
+              gh pr close "$pr_number" --comment \
+                'Closing automatically because the latest regeneration produced no screenshot changes.'
+            fi
+            if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+            echo 'Previews are already up to date.'
+            exit 0
+          fi
+
+          git switch -C "$branch"
+          git commit -m 'chore: regenerate preview screenshots'
+          git lfs push origin "$branch"
+          git push --force origin "$branch"
+
+          pr_number="$(gh api \
+            "/repos/$GITHUB_REPOSITORY/pulls?state=open&head=$GITHUB_REPOSITORY_OWNER:$branch" \
+            --jq '.[0].number // empty')"
+          if [ -n "$pr_number" ]; then
+            echo "Updated existing pull request #$pr_number."
+            exit 0
+          fi
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title 'chore: regenerate preview screenshots' \
+            --body $'## Preview screenshots\n\nThe Compass UI changed on `main`, so the committed screenshots were re-rendered in the pinned container. Please review the image diffs before merging.'

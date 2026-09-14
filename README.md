@@ -6,6 +6,10 @@ A clean, responsive magnetic compass for Linux desktops and phones, built with [
   <img src="resources/icons/hicolor/scalable/apps/org.cosmic_utils.compass.svg" alt="Compass app icon" width="80">
 </p>
 
+![Compass preview](preview/preview-001.png)
+
+[View more screenshots](preview/README.md)
+
 ## Features
 
 - GPU-rendered 2D compass rose with degree ticks and cardinal/intercardinal labels

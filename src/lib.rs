@@ -15,6 +15,14 @@ pub mod geometry {
     pub const MINOR_TICK_LENGTH_UNITS: f32 = 5.5;
     pub const HEADING_TEXT_UNITS: f32 = 50.0;
     pub const STATUS_TEXT_UNITS: f32 = 14.0;
+    const DEGREE_LABEL_OFFSET_UNITS: f32 = 15.0;
+    const DEGREE_LABEL_HALF_WIDTH_UNITS: f32 = 11.0;
+    const DEGREE_LABEL_EDGE_MARGIN_UNITS: f32 = 2.0;
+    const DIAL_RADIUS_UNITS: f32 = 102.0;
+    const DIAL_VISUAL_EXTENT_UNITS: f32 = DIAL_RADIUS_UNITS
+        + DEGREE_LABEL_OFFSET_UNITS
+        + DEGREE_LABEL_HALF_WIDTH_UNITS
+        + DEGREE_LABEL_EDGE_MARGIN_UNITS;
     const READOUT_GAP_UNITS: f32 = 8.0;
 
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -167,7 +175,7 @@ pub mod geometry {
 
     #[must_use]
     pub fn degree_label_radius(radius: f32, scale: f32) -> f32 {
-        radius + 15.0 * scale
+        radius + DEGREE_LABEL_OFFSET_UNITS * scale
     }
 
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -275,8 +283,11 @@ pub mod geometry {
         let short_side = region_width.min(region_height);
         let padding = (short_side * 0.02).clamp(2.0, 12.0);
         let dial_extent = (short_side / 2.0 - padding).max(1.0);
-        let scale = (dial_extent / 120.0).max(0.75);
-        let radius = (dial_extent - 18.0 * scale).max(1.0);
+        let scale = (dial_extent / DIAL_VISUAL_EXTENT_UNITS).max(0.75);
+        let degree_label_reserve = DEGREE_LABEL_OFFSET_UNITS * scale
+            + typography(scale).degree
+            + DEGREE_LABEL_EDGE_MARGIN_UNITS * scale;
+        let radius = (dial_extent - degree_label_reserve).max(1.0);
         (radius, scale, dial_extent)
     }
 

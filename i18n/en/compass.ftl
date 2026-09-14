@@ -33,3 +33,5 @@ desktop-comment = Find magnetic north with a clear, responsive compass
 desktop-keywords = compass;heading;direction;north;sensor;
 metainfo-summary = A responsive compass for Linux desktops and phones
 metainfo-description = Compass displays magnetic heading from SensorProxy in a clean interface designed for compact phones and desktop windows.
+metainfo-caption-desktop = Compass heading and location readings on a desktop
+metainfo-caption-phone = Responsive compass layout on a Linux phone

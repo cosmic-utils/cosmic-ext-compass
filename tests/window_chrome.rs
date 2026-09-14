@@ -15,6 +15,7 @@ fn initialized_app() -> CompassApp {
         Flags {
             demo_heading: Some(0.0),
             demo_motion: false,
+            initial_theme: None,
         },
     );
     app

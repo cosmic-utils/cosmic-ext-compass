@@ -9,7 +9,7 @@ use compass::geometry::{
 
 fn assert_fits(width: f32, height: f32) {
     let geometry = CompassGeometry::for_viewport(width, height);
-    assert!(geometry.radius >= 40.0);
+    assert!(geometry.radius >= 30.0);
     assert!(geometry.center_x - geometry.dial_extent >= 0.0);
     assert!(geometry.center_x + geometry.dial_extent <= width);
     assert!(geometry.center_y - geometry.dial_extent >= 0.0);
@@ -73,6 +73,28 @@ fn degree_numbers_have_more_space_outside_the_compass_ring() {
 }
 
 #[test]
+fn three_digit_degree_labels_stay_inside_the_visualization_region() {
+    for (width, height) in [
+        (240.0, 320.0),
+        (320.0, 240.0),
+        (959.0, 2_126.0),
+        (1_919.0, 1_063.0),
+    ] {
+        let geometry = CompassGeometry::for_viewport(width, height);
+        let label_center = degree_label_radius(geometry.radius, geometry.scale);
+        // A three-digit upright label can be approximately two text sizes wide.
+        let label_half_width = typography(geometry.scale).degree;
+
+        assert!(
+            label_center + label_half_width <= geometry.dial_extent,
+            "three-digit label exceeds the visualization region at {width}x{height}: {} > {}",
+            label_center + label_half_width,
+            geometry.dial_extent,
+        );
+    }
+}
+
+#[test]
 fn near_square_content_stays_stacked_while_clearly_wide_content_uses_columns() {
     let near_square = CompassGeometry::for_viewport(300.0, 299.0);
     assert_eq!(near_square.layout, CompassLayout::Stacked);
@@ -108,7 +130,7 @@ fn phone_portrait_keeps_the_dial_at_a_readable_scale() {
     let geometry = CompassGeometry::for_viewport(240.0, 320.0);
 
     assert_eq!(geometry.layout, CompassLayout::Stacked);
-    assert!((60.0..=65.0).contains(&geometry.radius));
+    assert!((55.0..=58.0).contains(&geometry.radius));
 }
 
 #[test]
@@ -131,7 +153,7 @@ fn spacious_desktop_fills_the_visualization_region() {
     let geometry = CompassGeometry::for_viewport(1600.0, 900.0);
 
     assert_eq!(geometry.layout, CompassLayout::CompactWide);
-    assert!((320.0..=340.0).contains(&geometry.radius));
+    assert!((300.0..=310.0).contains(&geometry.radius));
     assert!(geometry.center_x < 800.0);
     assert!(geometry.heading_x > geometry.center_x + geometry.radius);
 }
@@ -155,7 +177,7 @@ fn compass_fills_the_visualization_region_without_crossing_it() {
 #[test]
 fn dial_typography_scales_up_and_has_a_readable_minimum() {
     let large = CompassGeometry::for_viewport(1600.0, 900.0);
-    assert!(large.scale >= 3.0);
+    assert!(large.scale >= 2.9);
 
     let phone = CompassGeometry::for_viewport(240.0, 320.0);
     assert!(phone.scale >= 0.75);
@@ -292,7 +314,7 @@ fn spacious_near_square_window_does_not_shrink_the_dial() {
     let geometry = CompassGeometry::for_viewport(900.0, 1000.0);
 
     assert_eq!(geometry.layout, CompassLayout::Stacked);
-    assert!((195.0..=210.0).contains(&geometry.radius));
+    assert!((185.0..=195.0).contains(&geometry.radius));
 }
 
 #[test]
@@ -321,7 +343,7 @@ fn compact_landscape_places_dial_and_readout_side_by_side() {
         let geometry = CompassGeometry::for_viewport(width, height);
 
         assert_eq!(geometry.layout, CompassLayout::CompactWide);
-        assert!(geometry.radius >= 40.0);
+        assert!(geometry.radius >= 35.0);
         assert!(geometry.center_x + geometry.dial_extent < geometry.heading_x);
         assert!(geometry.center_x - geometry.dial_extent >= 0.0);
         assert!(geometry.center_y - geometry.dial_extent >= 0.0);
