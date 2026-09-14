@@ -3,17 +3,17 @@
 A clean, responsive magnetic compass for Linux desktops and phones, built with [libcosmic](https://github.com/pop-os/libcosmic).
 
 <p>
-  <img src="resources/icons/hicolor/scalable/apps/io.github.cosmic_utils.compass.svg" alt="Compass app icon" width="80">
+  <img src="resources/icons/hicolor/scalable/apps/org.cosmic_utils.compass.svg" alt="Compass app icon" width="80">
 </p>
 
 ## Features
 
 - GPU-rendered 2D compass rose with degree ticks and cardinal/intercardinal labels
-- Fixed top index with shortest-path heading smoothing
+- Fixed screen-aligned center crosshair and top index with shortest-path heading smoothing
 - Responsive layout tested at 240×320 and in short landscape windows
-- SensorProxy integration through its dedicated Compass child object
+- SensorProxy compass integration, GeoClue coordinates/elevation, and localized OpenStreetMap place names
 - Centered unavailable and access-denied messages that replace the compass
-- Fixed-heading and naturally animated demonstration modes
+- Fixed-heading and naturally animated demonstration modes using Burg Eltz reference coordinates
 
 ## Run
 
@@ -23,9 +23,13 @@ cargo run -- --demo-heading 42
 cargo run
 ```
 
-`just demo` continuously simulates smooth, changing magnetometer headings without requiring sensor hardware.
+`just demo` continuously simulates smooth, changing magnetometer headings without requiring sensor hardware. Both demonstration modes use the public Burg Eltz reference location (`50°12′18″ N 7°20′12″ E`, 320 m) rather than requesting the device location.
 
-Without `--demo` or `--demo-heading`, the app uses the system service `net.hadess.SensorProxy`. `ClaimCompass` may require launching from an active local desktop session so Polkit can identify the user. A remote or inactive session can be denied even when the service is running. `HasCompass=false` is authoritative; a cached numeric heading is ignored in that state.
+Without `--demo` or `--demo-heading`, the app uses the system services `net.hadess.SensorProxy` and `org.freedesktop.GeoClue2`. `ClaimCompass` may require launching from an active local desktop session so Polkit can identify the user. A remote or inactive session can be denied even when the service is running. `HasCompass=false` is authoritative; a cached numeric heading is ignored in that state.
+
+GeoClue is requested only while the real compass is visible. It may supply a GNSS fix or a less precise fallback such as Wi-Fi location. Coordinates, accuracy, and elevation are always derived from the broker. An incomplete GNSS driver therefore remains at “Waiting for a location reading…” or reports that no location source is available instead of displaying invented values.
+
+For a live fix, Compass can send the displayed one-arcsecond coordinate to an OpenStreetMap Nominatim service to obtain a place name in the system locale. The lookup runs only when the user selects **View → Look Up Place**; location changes never trigger public requests automatically. Up to 512 coordinate-and-locale results are retained in a private per-user cache, and network lookups are serialized across concurrent Compass processes and limited to one per minute. `COMPASS_NOMINATIM_URL` switches to another compatible endpoint without rebuilding the app. The public endpoint is suitable only for low-volume, user-triggered use; distributors with more than a small user base must set that variable to a proxy or alternative provider. OpenStreetMap attribution is shown as a small bottom-right notice with each result and in About.
 
 ## Build and install
 
@@ -37,7 +41,7 @@ just build-release
 sudo just install
 ```
 
-The Flatpak manifest grants only Wayland, fallback X11, DRI, and system-bus access to SensorProxy.
+The Flatpak manifest grants Wayland, fallback X11, DRI, network access for Nominatim, and narrowly scoped system-bus access to SensorProxy and GeoClue.
 
 ## Packaging
 

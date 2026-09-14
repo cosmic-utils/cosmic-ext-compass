@@ -2,7 +2,9 @@
 
 use crate::{
     fl,
+    geocode::{self, CacheKey, GeocodeEvent},
     heading::{normalize_heading, shortest_delta, smooth_heading},
+    location::{self, LocationEvent, LocationFix, format_coordinates},
     rose::CompassRose,
     sensor::{self, SensorEvent},
 };
@@ -19,6 +21,7 @@ use cosmic::{
         menu::{self, ItemHeight, ItemWidth, key_bind::KeyBind},
     },
 };
+use i18n_embed::DesktopLanguageRequester;
 use std::{collections::HashMap, sync::LazyLock, time::Duration};
 
 static MENU_ID: LazyLock<cosmic::widget::Id> =
@@ -28,7 +31,7 @@ const REPOSITORY_URL: &str = "https://github.com/cosmic-utils/cosmic-ext-compass
 const SUPPORT_URL: &str = "https://github.com/cosmic-utils/cosmic-ext-compass/issues";
 const WEBSITE_URL: &str = "https://cosmic-utils.org";
 const APP_ICON: &[u8] =
-    include_bytes!("../resources/icons/hicolor/256x256/apps/io.github.cosmic_utils.compass.png");
+    include_bytes!("../resources/icons/hicolor/256x256/apps/org.cosmic_utils.compass.png");
 
 struct AboutDetails {
     name: String,
@@ -68,6 +71,10 @@ fn about_widget() -> About {
             (details.website_label, details.website_url),
             (details.repository_label, details.repository_url),
             (details.support_label, details.support_url),
+            (
+                fl!("osm-data-credit"),
+                "https://www.openstreetmap.org/copyright",
+            ),
         ])
 }
 
@@ -85,6 +92,9 @@ pub struct Flags {
 
 #[derive(Clone, Debug)]
 pub enum Message {
+    Geocode(GeocodeEvent),
+    Location(LocationEvent),
+    LookupPlace,
     OpenUrl(String),
     Sensor(SensorEvent),
     Surface(surface::Action<Message>),
@@ -97,6 +107,7 @@ pub enum Message {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MenuItemAction {
+    LookupPlace,
     Settings,
     About,
 }
@@ -106,6 +117,7 @@ impl menu::action::MenuAction for MenuItemAction {
 
     fn message(&self) -> Self::Message {
         match self {
+            Self::LookupPlace => Message::LookupPlace,
             Self::Settings => Message::ToggleSettings,
             Self::About => Message::ToggleAbout,
         }
@@ -116,6 +128,7 @@ fn view_menu() -> (String, Vec<menu::Item<MenuItemAction, String>>) {
     (
         fl!("view"),
         vec![
+            menu::Item::Button(fl!("menu-lookup-place"), None, MenuItemAction::LookupPlace),
             menu::Item::Button(fl!("menu-settings"), None, MenuItemAction::Settings),
             menu::Item::Button(fl!("menu-about"), None, MenuItemAction::About),
         ],
@@ -187,6 +200,134 @@ impl SensorState {
     }
 }
 
+fn requests_live_location(demo: bool, sensor_state: &SensorState) -> bool {
+    !demo && sensor_state.shows_compass()
+}
+
+fn current_locale() -> String {
+    geocode::locale_preference(&DesktopLanguageRequester::requested_languages())
+}
+
+#[derive(Clone, Debug)]
+enum PlaceState {
+    Unrequested,
+    Loading,
+    OpenStreetMap(String),
+    Unavailable,
+}
+
+#[derive(Clone, Debug)]
+enum LocationState {
+    Searching,
+    Ready { fix: LocationFix, place: PlaceState },
+    Unavailable,
+    AccessDenied,
+    Failed,
+}
+
+fn location_lines(state: &LocationState) -> Vec<String> {
+    match state {
+        LocationState::Searching => vec![fl!("location-searching")],
+        LocationState::Ready { fix, place } => {
+            let mut lines = vec![format_coordinates(fix.latitude, fix.longitude)];
+            match place {
+                PlaceState::OpenStreetMap(place_name) => {
+                    lines.push(place_name.clone());
+                }
+                PlaceState::Loading => {
+                    lines.push(fl!(
+                        "location-accuracy",
+                        meters = (fix.accuracy_m.round() as i64)
+                    ));
+                    lines.push(fl!("location-place-searching"));
+                }
+                PlaceState::Unrequested => {
+                    lines.push(fl!(
+                        "location-accuracy",
+                        meters = (fix.accuracy_m.round() as i64)
+                    ));
+                    lines.push(fl!("location-place-unrequested"));
+                }
+                PlaceState::Unavailable => {
+                    lines.push(fl!(
+                        "location-accuracy",
+                        meters = (fix.accuracy_m.round() as i64)
+                    ));
+                    lines.push(fl!("location-place-unavailable"));
+                }
+            }
+            if let Some(altitude) = fix.altitude_m {
+                lines.push(fl!(
+                    "location-elevation",
+                    meters = (altitude.round() as i64)
+                ));
+            } else {
+                lines.push(fl!("location-elevation-unavailable"));
+            }
+            lines
+        }
+        LocationState::Unavailable => vec![fl!("location-unavailable")],
+        LocationState::AccessDenied => vec![fl!("location-access-denied")],
+        LocationState::Failed => vec![fl!("location-error")],
+    }
+}
+
+fn osm_attribution_visible(state: &LocationState) -> bool {
+    matches!(
+        state,
+        LocationState::Ready {
+            place: PlaceState::OpenStreetMap(_),
+            ..
+        }
+    )
+}
+
+fn apply_location_fix(state: &mut LocationState, mut fix: LocationFix, locale: &str) {
+    fix.place_name = None;
+    let next_key = CacheKey::for_display(fix.latitude, fix.longitude, locale);
+    let place = match state {
+        LocationState::Ready {
+            fix: previous,
+            place,
+        } if CacheKey::for_display(previous.latitude, previous.longitude, locale) == next_key => {
+            std::mem::replace(place, PlaceState::Loading)
+        }
+        _ => PlaceState::Unrequested,
+    };
+    *state = LocationState::Ready { fix, place };
+}
+
+fn request_place_lookup(demo: bool, state: &mut LocationState) -> bool {
+    if demo {
+        return false;
+    }
+    let LocationState::Ready { place, .. } = state else {
+        return false;
+    };
+    if matches!(place, PlaceState::Loading) {
+        return false;
+    }
+    *place = PlaceState::Loading;
+    true
+}
+
+fn apply_geocode_event(state: &mut LocationState, event: GeocodeEvent, locale: &str) {
+    let LocationState::Ready { fix, place } = state else {
+        return;
+    };
+    let expected = CacheKey::for_display(fix.latitude, fix.longitude, locale);
+    match event {
+        GeocodeEvent::Resolved { key, place_name } if key == expected => {
+            *place = place_name.map_or(PlaceState::Unavailable, PlaceState::OpenStreetMap);
+        }
+        GeocodeEvent::Failed { key, kind } if key == expected => {
+            tracing::warn!(?kind, "reverse geocoding failed");
+            *place = PlaceState::Unavailable;
+        }
+        GeocodeEvent::Resolved { .. } | GeocodeEvent::Failed { .. } => {}
+    }
+}
+
 pub struct CompassApp {
     core: Core,
     about: About,
@@ -194,6 +335,7 @@ pub struct CompassApp {
     context_page: ContextPage,
     app_theme: AppTheme,
     state: SensorState,
+    location_state: LocationState,
     target: Option<f32>,
     displayed: Option<f32>,
     demo: bool,
@@ -242,7 +384,7 @@ impl Application for CompassApp {
     type Flags = Flags;
     type Message = Message;
 
-    const APP_ID: &'static str = "io.github.cosmic_utils.compass";
+    const APP_ID: &'static str = "org.cosmic_utils.compass";
 
     fn core(&self) -> &Core {
         &self.core
@@ -262,6 +404,11 @@ impl Application for CompassApp {
         let initial_heading = flags
             .demo_heading
             .or_else(|| flags.demo_motion.then(|| demo_motion_heading(0.0)));
+        let mut demo_fix = location::demo_location();
+        let demo_place = demo_fix
+            .place_name
+            .take()
+            .expect("demonstration location must have a place name");
         (
             Self {
                 core,
@@ -274,6 +421,14 @@ impl Application for CompassApp {
                 } else {
                     SensorState::Connecting
                 },
+                location_state: if demo {
+                    LocationState::Ready {
+                        fix: demo_fix,
+                        place: PlaceState::OpenStreetMap(demo_place),
+                    }
+                } else {
+                    LocationState::Searching
+                },
                 target: initial_heading,
                 displayed: initial_heading,
                 demo,
@@ -285,31 +440,59 @@ impl Application for CompassApp {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
+        let mut subscriptions = Vec::new();
+
+        if requests_live_location(self.demo, &self.state) {
+            subscriptions.push(location::subscription().map(Message::Location));
+            if let LocationState::Ready {
+                fix,
+                place: PlaceState::Loading,
+            } = &self.location_state
+            {
+                subscriptions
+                    .push(geocode::subscription(fix, current_locale()).map(Message::Geocode));
+            }
+        }
+
         if self.demo_motion {
-            cosmic::iced::time::every(Duration::from_millis(16)).map(|_| Message::Tick)
-        } else if self.demo {
-            Subscription::none()
-        } else {
-            let sensor = sensor::subscription().map(Message::Sensor);
+            subscriptions
+                .push(cosmic::iced::time::every(Duration::from_millis(16)).map(|_| Message::Tick));
+        } else if !self.demo {
+            subscriptions.push(sensor::subscription().map(Message::Sensor));
             let needs_animation = match (self.displayed, self.target) {
                 (Some(current), Some(target)) => shortest_delta(current, target).abs() > 0.05,
                 (None, Some(_)) => true,
                 _ => false,
             };
-
             if needs_animation {
-                Subscription::batch([
-                    sensor,
+                subscriptions.push(
                     cosmic::iced::time::every(Duration::from_millis(16)).map(|_| Message::Tick),
-                ])
-            } else {
-                sensor
+                );
             }
         }
+
+        Subscription::batch(subscriptions)
     }
 
     fn update(&mut self, message: Self::Message) -> cosmic::app::Task<Self::Message> {
         match message {
+            Message::Geocode(event) => {
+                apply_geocode_event(&mut self.location_state, event, &current_locale());
+            }
+            Message::Location(event) => match event {
+                LocationEvent::Fix(fix) => {
+                    apply_location_fix(&mut self.location_state, fix, &current_locale());
+                }
+                LocationEvent::Unavailable => self.location_state = LocationState::Unavailable,
+                LocationEvent::AccessDenied => self.location_state = LocationState::AccessDenied,
+                LocationEvent::Failed(error) => {
+                    tracing::warn!(%error, "location subscription stopped");
+                    self.location_state = LocationState::Failed;
+                }
+            },
+            Message::LookupPlace => {
+                request_place_lookup(self.demo, &mut self.location_state);
+            }
             Message::OpenUrl(url) => {
                 if let Err(error) = open::that_detached(&url) {
                     tracing::warn!(%error, %url, "failed to open URL");
@@ -425,6 +608,9 @@ impl Application for CompassApp {
             let rose = widget::canvas(CompassRose {
                 heading: self.displayed,
                 status,
+                location_lines: location_lines(&self.location_state),
+                attribution: osm_attribution_visible(&self.location_state)
+                    .then(|| fl!("osm-attribution")),
             })
             .width(Length::Fill)
             .height(Length::Fill);
@@ -480,22 +666,25 @@ mod tests {
     }
 
     #[test]
-    fn view_menu_contains_localized_settings_and_about_actions() {
+    fn view_menu_contains_user_triggered_place_lookup_and_standard_actions() {
         crate::i18n::init(&[]);
         let (label, items) = view_menu();
 
         assert_eq!(label, "View");
         match items.as_slice() {
             [
+                menu::Item::Button(lookup_label, None, lookup_action),
                 menu::Item::Button(settings_label, None, settings_action),
                 menu::Item::Button(about_label, None, about_action),
             ] => {
+                assert_eq!(lookup_label, "Look Up Place");
+                assert!(matches!(lookup_action.message(), Message::LookupPlace));
                 assert_eq!(settings_label, "Settings…");
                 assert!(matches!(settings_action.message(), Message::ToggleSettings));
                 assert_eq!(about_label, "About Compass…");
                 assert!(matches!(about_action.message(), Message::ToggleAbout));
             }
-            _ => panic!("View menu must contain enabled Settings and About actions"),
+            _ => panic!("View menu must contain place lookup, Settings, and About actions"),
         }
     }
 
@@ -526,6 +715,241 @@ mod tests {
             open_url_message(REPOSITORY_URL),
             Message::OpenUrl(url) if url == REPOSITORY_URL
         ));
+    }
+
+    #[test]
+    fn live_location_runs_only_while_the_real_compass_is_visible() {
+        assert!(!requests_live_location(true, &SensorState::Demo));
+        assert!(!requests_live_location(false, &SensorState::Connecting));
+        assert!(!requests_live_location(false, &SensorState::Unavailable));
+        assert!(requests_live_location(false, &SensorState::Ready));
+    }
+
+    #[test]
+    fn demo_modes_use_burg_eltz_without_requesting_live_location() {
+        crate::i18n::init(&[]);
+        let (app, _) = <CompassApp as Application>::init(
+            Core::default(),
+            Flags {
+                demo_heading: Some(165.0),
+                demo_motion: false,
+            },
+        );
+
+        let lines = location_lines(&app.location_state);
+        assert_eq!(lines[0], "50°12′18″ N 7°20′12″ E");
+        assert_eq!(lines[1], "Burg Eltz, Rhineland-Palatinate");
+        assert!(lines[2].ends_with(" m Elevation"));
+        assert!(osm_attribution_visible(&app.location_state));
+        assert!(app.demo);
+    }
+
+    #[test]
+    fn location_readings_use_only_available_geoclue_values() {
+        crate::i18n::init(&[]);
+        let fix = crate::location::demo_location();
+
+        let lines = location_lines(&LocationState::Ready {
+            place: PlaceState::OpenStreetMap(
+                fix.place_name
+                    .clone()
+                    .expect("demo place name should be available"),
+            ),
+            fix,
+        });
+        assert_eq!(lines[0], "50°12′18″ N 7°20′12″ E");
+        assert_eq!(lines[1], "Burg Eltz, Rhineland-Palatinate");
+        assert!(lines[2].contains("320"));
+        assert!(lines[2].ends_with(" m Elevation"));
+        assert_eq!(
+            location_lines(&LocationState::Searching),
+            vec!["Waiting for a location reading…"]
+        );
+    }
+
+    #[test]
+    fn repeated_fix_at_the_same_displayed_position_keeps_the_place_name() {
+        let mut previous = crate::location::demo_location();
+        previous.place_name = None;
+        let mut state = LocationState::Ready {
+            fix: previous,
+            place: PlaceState::OpenStreetMap("Wierschem, Rhineland-Palatinate".to_owned()),
+        };
+        let mut next = crate::location::demo_location();
+        next.latitude += 0.000_01;
+
+        apply_location_fix(&mut state, next, "en");
+
+        assert!(matches!(
+            state,
+            LocationState::Ready {
+                place: PlaceState::OpenStreetMap(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn fix_at_a_new_displayed_position_waits_for_user_lookup() {
+        let mut previous = crate::location::demo_location();
+        previous.place_name = None;
+        let mut state = LocationState::Ready {
+            fix: previous,
+            place: PlaceState::OpenStreetMap("Wierschem, Rhineland-Palatinate".to_owned()),
+        };
+        let mut next = crate::location::demo_location();
+        next.latitude += 1.0 / 3_600.0;
+
+        apply_location_fix(&mut state, next, "en");
+
+        assert!(matches!(
+            state,
+            LocationState::Ready {
+                place: PlaceState::Unrequested,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn user_action_starts_lookup_for_the_current_location() {
+        let mut fix = crate::location::demo_location();
+        fix.place_name = None;
+        let mut state = LocationState::Ready {
+            fix,
+            place: PlaceState::Unrequested,
+        };
+
+        assert!(request_place_lookup(false, &mut state));
+        assert!(matches!(
+            state,
+            LocationState::Ready {
+                place: PlaceState::Loading,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn demonstration_location_never_starts_a_public_lookup() {
+        let mut fix = crate::location::demo_location();
+        let place_name = fix.place_name.take().unwrap();
+        let mut state = LocationState::Ready {
+            fix,
+            place: PlaceState::OpenStreetMap(place_name),
+        };
+
+        assert!(!request_place_lookup(true, &mut state));
+        assert!(matches!(
+            state,
+            LocationState::Ready {
+                place: PlaceState::OpenStreetMap(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn location_reading_explains_how_to_request_a_place_name() {
+        crate::i18n::init(&[]);
+        let mut fix = crate::location::demo_location();
+        fix.place_name = None;
+        let lines = location_lines(&LocationState::Ready {
+            fix,
+            place: PlaceState::Unrequested,
+        });
+
+        assert_eq!(lines[2], "Use View → Look Up Place for a place name");
+    }
+
+    #[test]
+    fn matching_reverse_geocode_result_updates_the_visible_place() {
+        crate::i18n::init(&[]);
+        let mut fix = crate::location::demo_location();
+        fix.place_name = None;
+        let key = crate::geocode::CacheKey::for_display(fix.latitude, fix.longitude, "en");
+        let mut state = LocationState::Ready {
+            fix,
+            place: PlaceState::Loading,
+        };
+
+        apply_geocode_event(
+            &mut state,
+            crate::geocode::GeocodeEvent::Resolved {
+                key,
+                place_name: Some("Wierschem, Rhineland-Palatinate".to_owned()),
+            },
+            "en",
+        );
+
+        let lines = location_lines(&state);
+        assert_eq!(lines[1], "Wierschem, Rhineland-Palatinate");
+        assert!(osm_attribution_visible(&state));
+    }
+
+    #[test]
+    fn reverse_geocode_failures_preserve_the_fix() {
+        crate::i18n::init(&[]);
+        let mut fix = crate::location::demo_location();
+        fix.place_name = None;
+        let key = crate::geocode::CacheKey::for_display(fix.latitude, fix.longitude, "en");
+        let mut state = LocationState::Ready {
+            fix,
+            place: PlaceState::Loading,
+        };
+
+        apply_geocode_event(
+            &mut state,
+            crate::geocode::GeocodeEvent::Failed {
+                key,
+                kind: crate::geocode::GeocodeErrorKind::Network,
+            },
+            "en",
+        );
+
+        let lines = location_lines(&state);
+        assert_eq!(lines[0], "50°12′18″ N 7°20′12″ E");
+        assert_eq!(lines[2], "Place name unavailable");
+    }
+
+    #[test]
+    fn openstreetmap_attribution_is_separate_from_centered_readings() {
+        crate::i18n::init(&[]);
+        let fix = crate::location::demo_location();
+        let lines = location_lines(&LocationState::Ready {
+            fix,
+            place: PlaceState::OpenStreetMap("Wierschem, Rhineland-Palatinate".to_owned()),
+        });
+
+        assert_eq!(lines[1], "Wierschem, Rhineland-Palatinate");
+        assert!(!lines.iter().any(|line| line.contains("OpenStreetMap")));
+        assert!(osm_attribution_visible(&LocationState::Ready {
+            fix: crate::location::demo_location(),
+            place: PlaceState::OpenStreetMap("Wierschem, Rhineland-Palatinate".to_owned()),
+        }));
+        assert!(!osm_attribution_visible(&LocationState::Searching));
+    }
+
+    #[test]
+    fn location_readings_report_missing_place_and_elevation() {
+        crate::i18n::init(&[]);
+        let fix = crate::location::LocationFix::try_new(
+            50.205_055_4,
+            7.336_597_1,
+            24.0,
+            f64::MIN,
+            "WiFi",
+        )
+        .unwrap();
+
+        let lines = location_lines(&LocationState::Ready {
+            fix,
+            place: PlaceState::Loading,
+        });
+        assert_eq!(lines[0], "50°12′18″ N 7°20′12″ E");
+        assert!(lines[1].contains("24"));
+        assert_eq!(lines[2], "Finding place name…");
+        assert_eq!(lines[3], "No elevation reading");
     }
 
     #[test]

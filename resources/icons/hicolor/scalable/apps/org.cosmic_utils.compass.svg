@@ -2,8 +2,8 @@
   <title>Compass</title>
   <defs>
     <linearGradient id="frame" x1="48" y1="228" x2="208" y2="28" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#A252D2"/>
-      <stop offset="1" stop-color="#BE6DEE"/>
+      <stop stop-color="#229FAD"/>
+      <stop offset="1" stop-color="#49BAC8"/>
     </linearGradient>
     <linearGradient id="dial" x1="62" y1="54" x2="200" y2="214" gradientUnits="userSpaceOnUse">
       <stop stop-color="#FAFCFF"/>

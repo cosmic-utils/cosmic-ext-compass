@@ -2,8 +2,10 @@
 
 use crate::{
     geometry::{
-        CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, TICK_STEP_DEGREES,
-        heading_readout_positions, heading_size_for_region, typography,
+        CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, MINOR_TICK_LENGTH_UNITS,
+        TICK_STEP_DEGREES, attribution_geometry, cardinal_label_radius, crosshair_geometry,
+        degree_label_radius, dial_stroke_widths, heading_readout_positions,
+        position_marker_geometry, readout_geometry_in_bounds, typography,
     },
     heading::heading_readout_parts,
 };
@@ -13,10 +15,17 @@ use cosmic::{
     widget::canvas,
 };
 
+#[must_use]
+pub fn north_marker_color(theme: &Theme) -> Color {
+    Color::from(theme.cosmic().destructive_color())
+}
+
 #[derive(Clone, Debug)]
 pub struct CompassRose {
     pub heading: Option<f32>,
     pub status: String,
+    pub location_lines: Vec<String>,
+    pub attribution: Option<String>,
 }
 
 impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
@@ -38,15 +47,39 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
             a: 0.55,
             ..foreground
         };
-        let north = Color::from_rgb(0.93, 0.20, 0.24);
+        let north = north_marker_color(theme);
         let heading = self.heading.unwrap_or(0.0);
         let center = Point::new(layout.center_x, layout.center_y);
         let scale = layout.scale;
         let typography = typography(scale);
+        let strokes = dial_stroke_widths(scale);
         let reading_width = match layout.layout {
             CompassLayout::CompactWide => bounds.width / 2.0,
             CompassLayout::Stacked => bounds.width,
         };
+        let reading_center_y = match layout.layout {
+            CompassLayout::CompactWide => bounds.height / 2.0,
+            CompassLayout::Stacked => bounds.height * 0.75,
+        };
+        let reading_top = match layout.layout {
+            CompassLayout::CompactWide => 0.0,
+            CompassLayout::Stacked => bounds.height / 2.0,
+        };
+        let attribution_layout = self
+            .attribution
+            .as_ref()
+            .map(|_| attribution_geometry(bounds.width, bounds.height, scale));
+        let reading_bottom = attribution_layout.map_or(bounds.height, |notice| {
+            notice.align_y - notice.text_size - 4.0
+        });
+        let readout = readout_geometry_in_bounds(
+            reading_center_y,
+            scale,
+            reading_width,
+            1 + self.location_lines.len(),
+            reading_top,
+            reading_bottom,
+        );
 
         // The dense marks define the dial; there is intentionally no heavy bezel.
         for degree in (0..360).step_by(TICK_STEP_DEGREES) {
@@ -57,7 +90,7 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
             } else if medium {
                 9.0 * scale
             } else {
-                5.5 * scale
+                MINOR_TICK_LENGTH_UNITS * scale
             };
             let angle = angle(degree as f32, heading);
             let outer = radial_point(center, layout.radius, angle);
@@ -67,7 +100,11 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
                 &path,
                 canvas::Stroke::default()
                     .with_color(if major { foreground } else { muted })
-                    .with_width(if major { 1.8 * scale } else { 1.0 }),
+                    .with_width(if major {
+                        strokes.major_tick
+                    } else {
+                        strokes.minor_tick
+                    }),
             );
         }
 
@@ -75,7 +112,7 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
         for degree in (0..360).step_by(DEGREE_LABEL_STEP) {
             let position = radial_point(
                 center,
-                layout.radius + 11.0 * scale,
+                degree_label_radius(layout.radius, scale),
                 angle(degree as f32, heading),
             );
             let mut text = canvas::Text::from(degree.to_string());
@@ -88,7 +125,11 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
         }
 
         for (degree, label) in [(0.0, "N"), (90.0, "E"), (180.0, "S"), (270.0, "W")] {
-            let position = radial_point(center, layout.radius * 0.64, angle(degree, heading));
+            let position = radial_point(
+                center,
+                cardinal_label_radius(layout.radius),
+                angle(degree, heading),
+            );
             let mut text = canvas::Text::from(label);
             text.position = position;
             text.color = foreground;
@@ -98,7 +139,45 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
             frame.fill_text(text);
         }
 
-        // A red marker belongs to north and rotates with the dial.
+        // This orientation guide is deliberately screen-aligned while the
+        // dial rotates beneath it.
+        let crosshair = crosshair_geometry(layout.center_x, layout.center_y, layout.radius);
+        let crosshair_color = Color {
+            a: 0.38,
+            ..foreground
+        };
+        for (start, end) in [
+            (crosshair.horizontal_start, crosshair.horizontal_end),
+            (crosshair.vertical_start, crosshair.vertical_end),
+        ] {
+            frame.stroke(
+                &canvas::Path::line(Point::from(start), Point::from(end)),
+                canvas::Stroke::default()
+                    .with_color(crosshair_color)
+                    .with_width(strokes.crosshair),
+            );
+        }
+        let center_mark = 5.0 * scale;
+        let (center_x, center_y) = crosshair.center;
+        for (start, end) in [
+            (
+                Point::new(center_x - center_mark, center_y),
+                Point::new(center_x + center_mark, center_y),
+            ),
+            (
+                Point::new(center_x, center_y - center_mark),
+                Point::new(center_x, center_y + center_mark),
+            ),
+        ] {
+            frame.stroke(
+                &canvas::Path::line(start, end),
+                canvas::Stroke::default()
+                    .with_color(muted)
+                    .with_width(strokes.center_mark),
+            );
+        }
+
+        // The destructive-colored marker belongs to north and rotates with the dial.
         let north_angle = angle(0.0, heading);
         let (sin, cos) = north_angle.sin_cos();
         let radial = Point::new(sin, -cos);
@@ -123,9 +202,10 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
         frame.fill(&marker.build(), north);
 
         // A fixed, high-contrast index makes the current bearing unambiguous.
+        let marker = position_marker_geometry(layout.needle_tip_y, scale);
         let index = canvas::Path::line(
-            Point::new(layout.center_x, layout.needle_tip_y - 13.0 * scale),
-            Point::new(layout.center_x, layout.needle_tip_y + 11.0 * scale),
+            Point::new(layout.center_x, marker.start_y),
+            Point::new(layout.center_x, marker.end_y),
         );
         frame.stroke(
             &index,
@@ -141,12 +221,12 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
                 (parts.degrees, parts.direction)
             },
         );
-        let heading_size = heading_size_for_region(scale, reading_width);
+        let heading_size = readout.heading_size;
         let positions = heading_readout_positions(layout.heading_x, heading_size);
         let side_width = (reading_width / 2.0 - 8.0).max(1.0);
 
         let mut value = canvas::Text::from(degrees);
-        value.position = Point::new(positions.value_end_x, layout.heading_baseline);
+        value.position = Point::new(positions.value_end_x, readout.heading_baseline);
         value.color = foreground;
         value.size = heading_size.into();
         value.max_width = side_width;
@@ -155,7 +235,7 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
         frame.fill_text(value);
 
         let mut degree = canvas::Text::from("°");
-        degree.position = Point::new(positions.degree_center_x, layout.heading_baseline);
+        degree.position = Point::new(positions.degree_center_x, readout.heading_baseline);
         degree.color = foreground;
         degree.size = heading_size.into();
         degree.align_x = Alignment::Center;
@@ -164,7 +244,7 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
 
         if !direction.is_empty() {
             let mut direction = canvas::Text::from(direction);
-            direction.position = Point::new(positions.direction_start_x, layout.heading_baseline);
+            direction.position = Point::new(positions.direction_start_x, readout.heading_baseline);
             direction.color = foreground;
             direction.size = heading_size.into();
             direction.max_width = side_width;
@@ -174,13 +254,40 @@ impl<Message> canvas::Program<Message, Theme, Renderer> for CompassRose {
         }
 
         let mut status = canvas::Text::from(self.status.as_str());
-        status.position = Point::new(layout.heading_x, layout.status_baseline);
+        status.position = Point::new(layout.heading_x, readout.secondary_baselines[0]);
         status.color = muted;
-        status.size = typography.status.into();
+        status.size = readout.secondary_size.into();
         status.max_width = (reading_width - 16.0).max(1.0);
         status.align_x = Alignment::Center;
         status.align_y = Vertical::Center;
         frame.fill_text(status);
+
+        for (line, baseline) in self
+            .location_lines
+            .iter()
+            .zip(readout.secondary_baselines.iter().skip(1))
+        {
+            let mut location = canvas::Text::from(line.as_str());
+            location.position = Point::new(layout.heading_x, *baseline);
+            location.color = foreground;
+            location.size = readout.secondary_size.into();
+            location.max_width = (reading_width - 16.0).max(1.0);
+            location.align_x = Alignment::Center;
+            location.align_y = Vertical::Center;
+            frame.fill_text(location);
+        }
+
+        if let Some(attribution) = &self.attribution {
+            let geometry = attribution_layout.expect("attribution geometry must be available");
+            let mut notice = canvas::Text::from(attribution.as_str());
+            notice.position = Point::new(geometry.align_x, geometry.align_y);
+            notice.color = muted;
+            notice.size = geometry.text_size.into();
+            notice.max_width = (bounds.width - 24.0).max(1.0);
+            notice.align_x = Alignment::Right;
+            notice.align_y = Vertical::Bottom;
+            frame.fill_text(notice);
+        }
 
         vec![frame.into_geometry()]
     }

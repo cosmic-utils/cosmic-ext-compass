@@ -1,6 +1,7 @@
 compass = Compass
 view = View
 menu-settings = Settings…
+menu-lookup-place = Look Up Place
 menu-about = About Compass…
 settings-title = Settings
 settings-appearance = Appearance
@@ -18,6 +19,18 @@ status-unavailable = No compass sensor is available
 status-access-denied = Sensor access was denied. Start Compass from an active desktop session.
 status-error = The compass sensor could not be reached
 status-demo = Demonstration heading
+location-searching = Waiting for a location reading…
+location-unavailable = No location source is available
+location-access-denied = Location access was denied
+location-error = Location service could not be reached
+location-accuracy = Accuracy ±{ $meters } m
+location-place-searching = Finding place name…
+location-place-unrequested = Use View → Look Up Place for a place name
+location-place-unavailable = Place name unavailable
+location-elevation = { $meters } m Elevation
+location-elevation-unavailable = No elevation reading
+osm-attribution = © OpenStreetMap contributors
+osm-data-credit = OpenStreetMap data (ODbL)
 
 desktop-comment = Find magnetic north with a clear, responsive compass
 desktop-keywords = compass;heading;direction;north;sensor;

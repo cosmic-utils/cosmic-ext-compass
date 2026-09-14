@@ -34,4 +34,7 @@ pub static LANGUAGE_LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
 #[macro_export]
 macro_rules! fl {
     ($message_id:literal) => {{ i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id) }};
+    ($message_id:literal, $($args:tt)*) => {{
+        i18n_embed_fl::fl!($crate::i18n::LANGUAGE_LOADER, $message_id, $($args)*)
+    }};
 }

@@ -32,6 +32,51 @@ fn regular_window_uses_the_standard_cosmic_title_bar() {
 }
 
 #[test]
+fn application_identity_uses_the_cosmic_utils_domain() {
+    let app = std::fs::read_to_string("src/app.rs").expect("app source should be readable");
+    let manifest = std::fs::read_to_string("org.cosmic_utils.compass.yml")
+        .expect("renamed Flatpak manifest should be readable");
+    let desktop = std::fs::read_to_string("resources/org.cosmic_utils.compass.desktop")
+        .expect("renamed desktop entry should be readable");
+    let metainfo = std::fs::read_to_string("resources/org.cosmic_utils.compass.metainfo.xml")
+        .expect("renamed AppStream metadata should be readable");
+
+    for content in [&app, &manifest, &desktop, &metainfo] {
+        assert!(content.contains("org.cosmic_utils.compass"));
+        assert!(!content.contains("io.github.cosmic_utils.compass"));
+    }
+    assert!(
+        std::path::Path::new("resources/icons/hicolor/scalable/apps/org.cosmic_utils.compass.svg")
+            .is_file()
+    );
+}
+
+#[test]
+fn reverse_geocoding_has_sandbox_network_access() {
+    let manifest = std::fs::read_to_string("org.cosmic_utils.compass.yml")
+        .expect("Flatpak manifest should be readable");
+    assert!(manifest.contains("- --share=network"));
+}
+
+#[test]
+fn about_drawer_credits_openstreetmap_data() {
+    let source = std::fs::read_to_string("src/app.rs").expect("app source should be readable");
+    assert!(source.contains("https://www.openstreetmap.org/copyright"));
+    assert!(source.contains("osm-data-credit"));
+}
+
+#[test]
+fn location_permissions_are_declared_for_native_and_flatpak_builds() {
+    let desktop = std::fs::read_to_string("resources/org.cosmic_utils.compass.desktop")
+        .expect("desktop entry should be readable");
+    assert!(desktop.contains("X-Geoclue-Reason="));
+
+    let flatpak = std::fs::read_to_string("org.cosmic_utils.compass.yml")
+        .expect("Flatpak manifest should be readable");
+    assert!(flatpak.contains("--system-talk-name=org.freedesktop.GeoClue2"));
+}
+
+#[test]
 fn title_bar_exposes_view_menu_and_about_drawer() {
     let mut app = initialized_app();
 

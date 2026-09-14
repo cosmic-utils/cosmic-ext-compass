@@ -6,7 +6,19 @@ use compass::{
         cardinal_direction, heading_readout, heading_readout_parts, normalize_heading,
         shortest_delta, smooth_heading,
     },
+    rose::north_marker_color,
 };
+use cosmic::Theme;
+
+#[test]
+fn north_triangle_uses_the_cosmic_error_color() {
+    for theme in [Theme::dark(), Theme::light()] {
+        assert_eq!(
+            north_marker_color(&theme),
+            theme.cosmic().destructive_color().into()
+        );
+    }
+}
 
 #[test]
 fn heading_readout_combines_unpadded_degrees_and_direction() {

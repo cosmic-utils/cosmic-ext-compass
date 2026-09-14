@@ -9,7 +9,7 @@ Compass follows semantic versioning. The `Create Release` workflow updates `Carg
 3. Confirm the metadata update and tag complete.
 4. Confirm all release jobs pass before publishing downstream packaging updates.
 
-The workflow needs `RELEASE_TOKEN` to push a tag that starts another workflow. Optional Flathub publishing needs a token with access to `flathub/io.github.cosmic_utils.compass`.
+The workflow needs `RELEASE_TOKEN` to push a tag that starts another workflow. Optional Flathub publishing needs a token with access to `flathub/org.cosmic_utils.compass`.
 
 ## Manual fallback
 

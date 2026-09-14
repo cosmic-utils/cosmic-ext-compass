@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub mod app;
+pub mod geocode;
 pub mod i18n;
+pub mod location;
 pub mod rose;
 pub mod sensor;
 
 pub mod geometry {
     pub const TICK_STEP_DEGREES: usize = 3;
     pub const DEGREE_LABEL_STEP: usize = 30;
+    pub const MINOR_TICK_LENGTH_UNITS: f32 = 5.5;
     pub const HEADING_TEXT_UNITS: f32 = 50.0;
     pub const STATUS_TEXT_UNITS: f32 = 14.0;
     const READOUT_GAP_UNITS: f32 = 8.0;
@@ -23,10 +26,45 @@ pub mod geometry {
     #[must_use]
     pub fn typography(scale: f32) -> CompassTypography {
         CompassTypography {
-            degree: (11.0 * scale).clamp(8.0, 36.0),
-            cardinal: (18.0 * scale).clamp(16.0, 64.0),
-            heading: (HEADING_TEXT_UNITS * scale).clamp(28.0, 160.0),
-            status: (STATUS_TEXT_UNITS * scale).clamp(11.0, 32.0),
+            degree: (11.0 * scale).max(8.0),
+            cardinal: (18.0 * scale).max(16.0),
+            heading: (HEADING_TEXT_UNITS * scale).max(28.0),
+            status: (STATUS_TEXT_UNITS * scale).max(11.0),
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct DialStrokeWidths {
+        pub major_tick: f32,
+        pub minor_tick: f32,
+        pub crosshair: f32,
+        pub center_mark: f32,
+    }
+
+    #[must_use]
+    pub fn dial_stroke_widths(scale: f32) -> DialStrokeWidths {
+        DialStrokeWidths {
+            major_tick: (1.8 * scale).max(1.0),
+            minor_tick: scale.max(1.0),
+            crosshair: scale.max(1.0),
+            center_mark: (1.5 * scale).max(1.0),
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct AttributionGeometry {
+        pub align_x: f32,
+        pub align_y: f32,
+        pub text_size: f32,
+    }
+
+    #[must_use]
+    pub fn attribution_geometry(width: f32, height: f32, scale: f32) -> AttributionGeometry {
+        const MARGIN: f32 = 12.0;
+        AttributionGeometry {
+            align_x: (width - MARGIN).max(0.0),
+            align_y: (height - MARGIN).max(0.0),
+            text_size: (8.0 + scale).clamp(9.0, 14.0),
         }
     }
 
@@ -53,6 +91,54 @@ pub mod geometry {
             value_end_x: center_x - text_size * 0.20,
             degree_center_x: center_x,
             direction_start_x: center_x + text_size * 0.35,
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct CrosshairGeometry {
+        pub horizontal_start: (f32, f32),
+        pub horizontal_end: (f32, f32),
+        pub vertical_start: (f32, f32),
+        pub vertical_end: (f32, f32),
+        pub center: (f32, f32),
+    }
+
+    /// Fixed screen-aligned orientation guide drawn independently of heading.
+    #[must_use]
+    pub fn crosshair_geometry(center_x: f32, center_y: f32, radius: f32) -> CrosshairGeometry {
+        let half_extent = radius * 0.60;
+        CrosshairGeometry {
+            horizontal_start: (center_x - half_extent, center_y),
+            horizontal_end: (center_x + half_extent, center_y),
+            vertical_start: (center_x, center_y - half_extent),
+            vertical_end: (center_x, center_y + half_extent),
+            center: (center_x, center_y),
+        }
+    }
+
+    #[must_use]
+    pub fn cardinal_label_radius(radius: f32) -> f32 {
+        radius * 0.72
+    }
+
+    #[must_use]
+    pub fn degree_label_radius(radius: f32, scale: f32) -> f32 {
+        radius + 15.0 * scale
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct PositionMarkerGeometry {
+        pub start_y: f32,
+        pub end_y: f32,
+    }
+
+    #[must_use]
+    pub fn position_marker_geometry(ring_y: f32, scale: f32) -> PositionMarkerGeometry {
+        let half_length = 12.0 * scale;
+        let marker_center = ring_y + MINOR_TICK_LENGTH_UNITS * scale / 2.0;
+        PositionMarkerGeometry {
+            start_y: marker_center - half_length,
+            end_y: marker_center + half_length,
         }
     }
 
@@ -83,7 +169,7 @@ pub mod geometry {
         pub fn for_viewport(width: f32, height: f32) -> Self {
             let width = finite_positive_or(width, 240.0);
             let height = finite_positive_or(height, 320.0);
-            let compact_wide = width > height;
+            let compact_wide = width > height * 1.2;
             let layout = if compact_wide {
                 CompassLayout::CompactWide
             } else {
@@ -143,20 +229,137 @@ pub mod geometry {
 
     fn dial_metrics(region_width: f32, region_height: f32) -> (f32, f32, f32) {
         let short_side = region_width.min(region_height);
-        let padding = (short_side * 0.025).clamp(4.0, 12.0);
+        let padding = (short_side * 0.02).clamp(2.0, 12.0);
         let dial_extent = (short_side / 2.0 - padding).max(1.0);
-        let scale = (dial_extent / 120.0).clamp(0.75, 3.5);
+        let scale = (dial_extent / 120.0).max(0.75);
         let radius = (dial_extent - 18.0 * scale).max(1.0);
         (radius, scale, dial_extent)
     }
 
-    fn reading_baselines(center_y: f32, scale: f32, region_width: f32) -> (f32, f32) {
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct ReadoutGeometry {
+        pub heading_baseline: f32,
+        pub heading_size: f32,
+        pub secondary_baselines: Vec<f32>,
+        pub secondary_size: f32,
+    }
+
+    /// Centers the heading and all secondary readings as one visual group.
+    #[must_use]
+    pub fn readout_geometry(
+        center_y: f32,
+        scale: f32,
+        region_width: f32,
+        secondary_count: usize,
+    ) -> ReadoutGeometry {
         let sizes = typography(scale);
         let heading_size = heading_size_for_region(scale, region_width);
-        let gap = (READOUT_GAP_UNITS * scale).clamp(6.0, 24.0);
-        let heading = center_y - (gap + sizes.status) / 2.0;
-        let status = center_y + (gap + heading_size) / 2.0;
-        (heading, status)
+        readout_geometry_with_sizes(
+            center_y,
+            heading_size,
+            sizes.status,
+            (READOUT_GAP_UNITS * scale).max(6.0),
+            secondary_count,
+        )
+    }
+
+    fn readout_geometry_with_sizes(
+        center_y: f32,
+        heading_size: f32,
+        secondary_size: f32,
+        gap: f32,
+        secondary_count: usize,
+    ) -> ReadoutGeometry {
+        if secondary_count == 0 {
+            return ReadoutGeometry {
+                heading_baseline: center_y,
+                heading_size,
+                secondary_baselines: Vec::new(),
+                secondary_size,
+            };
+        }
+
+        let secondary_step = secondary_size * 1.45;
+        let secondary_height =
+            secondary_size + secondary_step * secondary_count.saturating_sub(1) as f32;
+        let total_height = heading_size + gap + secondary_height;
+        let top = center_y - total_height / 2.0;
+        let heading_baseline = top + heading_size / 2.0;
+        let first_secondary = top + heading_size + gap + secondary_size / 2.0;
+        let secondary_baselines = (0..secondary_count)
+            .map(|index| first_secondary + secondary_step * index as f32)
+            .collect();
+
+        ReadoutGeometry {
+            heading_baseline,
+            heading_size,
+            secondary_baselines,
+            secondary_size,
+        }
+    }
+
+    /// Fits a complete readout group inside the available vertical region.
+    #[must_use]
+    pub fn readout_geometry_in_bounds(
+        center_y: f32,
+        scale: f32,
+        region_width: f32,
+        secondary_count: usize,
+        minimum_top: f32,
+        maximum_bottom: f32,
+    ) -> ReadoutGeometry {
+        let sizes = typography(scale);
+        let heading_size = heading_size_for_region(scale, region_width);
+        let gap = (READOUT_GAP_UNITS * scale).max(6.0);
+        let secondary_height = if secondary_count == 0 {
+            0.0
+        } else {
+            sizes.status + sizes.status * 1.45 * secondary_count.saturating_sub(1) as f32
+        };
+        let total_height =
+            heading_size + if secondary_count == 0 { 0.0 } else { gap } + secondary_height;
+        let available_height = (maximum_bottom - minimum_top).max(1.0);
+        let compression = (available_height / total_height.max(1.0)).min(1.0);
+        let fitted_height = total_height * compression;
+        let fitted_center = center_y.clamp(
+            minimum_top + fitted_height / 2.0,
+            maximum_bottom - fitted_height / 2.0,
+        );
+
+        readout_geometry_with_sizes(
+            fitted_center,
+            heading_size * compression,
+            sizes.status * compression,
+            gap * compression,
+            secondary_count,
+        )
+    }
+
+    #[must_use]
+    pub fn readout_geometry_above_footer(
+        center_y: f32,
+        scale: f32,
+        region_width: f32,
+        secondary_count: usize,
+        maximum_bottom: f32,
+    ) -> ReadoutGeometry {
+        let mut geometry = readout_geometry(center_y, scale, region_width, secondary_count);
+        let sizes = typography(scale);
+        let bottom = geometry.secondary_baselines.last().map_or(
+            geometry.heading_baseline + sizes.heading / 2.0,
+            |baseline| baseline + sizes.status / 2.0,
+        );
+        let shift = (bottom - maximum_bottom).max(0.0);
+        geometry.heading_baseline -= shift;
+        for baseline in &mut geometry.secondary_baselines {
+            *baseline -= shift;
+        }
+        geometry
+    }
+
+    fn reading_baselines(center_y: f32, scale: f32, region_width: f32) -> (f32, f32) {
+        let geometry = readout_geometry(center_y, scale, region_width, 1);
+        (geometry.heading_baseline, geometry.secondary_baselines[0])
     }
 }
 

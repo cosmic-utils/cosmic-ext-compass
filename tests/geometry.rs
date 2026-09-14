@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use compass::geometry::{
-    CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, TICK_STEP_DEGREES, heading_size_for_region,
-    typography,
+    CompassGeometry, CompassLayout, DEGREE_LABEL_STEP, TICK_STEP_DEGREES, attribution_geometry,
+    cardinal_label_radius, crosshair_geometry, degree_label_radius, dial_stroke_widths,
+    heading_size_for_region, position_marker_geometry, readout_geometry,
+    readout_geometry_above_footer, readout_geometry_in_bounds, typography,
 };
 
 fn assert_fits(width: f32, height: f32) {
@@ -24,16 +26,54 @@ fn dial_uses_dense_ticks_and_sparse_degree_labels() {
 }
 
 #[test]
-fn aspect_ratio_alone_selects_the_two_region_orientation() {
-    let wide = CompassGeometry::for_viewport(300.0, 299.0);
-    assert_eq!(wide.layout, CompassLayout::CompactWide);
-    assert_eq!((wide.center_x, wide.center_y), (75.0, 149.5));
-    assert_eq!(wide.heading_x, 225.0);
+fn fixed_crosshair_is_centered_inside_the_dial() {
+    let geometry = crosshair_geometry(120.0, 90.0, 60.0);
 
-    let tall = CompassGeometry::for_viewport(299.0, 300.0);
-    assert_eq!(tall.layout, CompassLayout::Stacked);
-    assert_eq!((tall.center_x, tall.center_y), (149.5, 75.0));
-    assert_eq!(tall.heading_x, 149.5);
+    assert_eq!(geometry.horizontal_start, (84.0, 90.0));
+    assert_eq!(geometry.horizontal_end, (156.0, 90.0));
+    assert_eq!(geometry.vertical_start, (120.0, 54.0));
+    assert_eq!(geometry.vertical_end, (120.0, 126.0));
+    assert_eq!(geometry.center, (120.0, 90.0));
+}
+
+#[test]
+fn cardinal_letters_sit_closer_to_the_compass_ring() {
+    assert_eq!(cardinal_label_radius(100.0), 72.0);
+}
+
+#[test]
+fn fixed_position_marker_is_centered_on_the_smallest_ring_markers() {
+    let marker = position_marker_geometry(100.0, 2.0);
+
+    assert_eq!(marker.start_y, 81.5);
+    assert_eq!(marker.end_y, 129.5);
+    assert_eq!((marker.start_y + marker.end_y) / 2.0, 105.5);
+}
+
+#[test]
+fn degree_numbers_have_more_space_outside_the_compass_ring() {
+    assert_eq!(degree_label_radius(100.0, 2.0), 130.0);
+}
+
+#[test]
+fn near_square_content_stays_stacked_while_clearly_wide_content_uses_columns() {
+    let near_square = CompassGeometry::for_viewport(300.0, 299.0);
+    assert_eq!(near_square.layout, CompassLayout::Stacked);
+    assert_eq!((near_square.center_x, near_square.center_y), (150.0, 74.75));
+    assert_eq!(near_square.heading_x, 150.0);
+
+    let wide = CompassGeometry::for_viewport(360.0, 299.0);
+    assert_eq!(wide.layout, CompassLayout::CompactWide);
+    assert_eq!((wide.center_x, wide.center_y), (90.0, 149.5));
+    assert_eq!(wide.heading_x, 270.0);
+}
+
+#[test]
+fn portrait_phone_content_below_chrome_remains_stacked() {
+    assert_eq!(
+        CompassGeometry::for_viewport(240.0, 224.0).layout,
+        CompassLayout::Stacked
+    );
 }
 
 #[test]
@@ -117,11 +157,79 @@ fn rendered_typography_scales_smoothly_between_readable_limits() {
     assert!(large.cardinal > small.cardinal * 2.0);
     assert!(large.heading > small.heading * 2.0);
 
-    let oversized = typography(100.0);
-    assert!(oversized.degree <= 36.0);
-    assert!(oversized.cardinal <= 64.0);
-    assert!(oversized.heading <= 160.0);
-    assert!(oversized.status <= 32.0);
+    let regular = typography(2.0);
+    let oversized = typography(10.0);
+    assert!((oversized.degree / regular.degree - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.cardinal / regular.cardinal - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.heading / regular.heading - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.status / regular.status - 5.0).abs() < f32::EPSILON);
+}
+
+#[test]
+fn compass_scale_remains_proportional_in_very_large_windows() {
+    let regular = CompassGeometry::for_viewport(1600.0, 900.0);
+    let oversized = CompassGeometry::for_viewport(3840.0, 2128.0);
+
+    assert!(
+        (regular.scale / regular.dial_extent - oversized.scale / oversized.dial_extent).abs()
+            < 0.000_01
+    );
+}
+
+#[test]
+fn dial_lines_remain_proportional_to_the_compass_scale() {
+    let regular = dial_stroke_widths(2.0);
+    let oversized = dial_stroke_widths(10.0);
+
+    assert!((oversized.major_tick / regular.major_tick - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.minor_tick / regular.minor_tick - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.crosshair / regular.crosshair - 5.0).abs() < f32::EPSILON);
+    assert!((oversized.center_mark / regular.center_mark - 5.0).abs() < f32::EPSILON);
+}
+
+#[test]
+fn openstreetmap_attribution_is_a_small_bottom_right_notice() {
+    let notice = attribution_geometry(3840.0, 2128.0, 8.0);
+
+    assert_eq!(notice.align_x, 3828.0);
+    assert_eq!(notice.align_y, 2116.0);
+    assert!(notice.text_size <= 14.0);
+}
+
+#[test]
+fn phone_readings_stay_clear_of_the_attribution_notice() {
+    let layout = CompassGeometry::for_viewport(240.0, 224.0);
+    let notice = attribution_geometry(240.0, 224.0, layout.scale);
+    let readout = readout_geometry_above_footer(
+        168.0,
+        layout.scale,
+        240.0,
+        4,
+        notice.align_y - notice.text_size - 4.0,
+    );
+    let bottom = readout.secondary_baselines[3] + typography(layout.scale).status / 2.0;
+
+    assert!(bottom <= notice.align_y - notice.text_size - 4.0);
+}
+
+#[test]
+fn phone_location_readings_fit_entirely_inside_the_second_region() {
+    let layout = CompassGeometry::for_viewport(240.0, 224.0);
+    let notice = attribution_geometry(240.0, 224.0, layout.scale);
+    let readout = readout_geometry_in_bounds(
+        168.0,
+        layout.scale,
+        240.0,
+        5,
+        112.0,
+        notice.align_y - notice.text_size - 4.0,
+    );
+    let top = readout.heading_baseline - readout.heading_size / 2.0;
+    let bottom = readout.secondary_baselines[4] + readout.secondary_size / 2.0;
+
+    assert!(top >= 112.0);
+    assert!(bottom <= notice.align_y - notice.text_size - 4.0);
+    assert!(readout.secondary_size >= 8.0);
 }
 
 #[test]
@@ -131,21 +239,43 @@ fn primary_reading_scales_down_to_stay_inside_a_narrow_region() {
 }
 
 #[test]
+fn readings_with_location_remain_centered_in_the_second_region() {
+    let geometry = CompassGeometry::for_viewport(360.0, 640.0);
+    let readout = readout_geometry(480.0, geometry.scale, 360.0, 4);
+    let sizes = typography(geometry.scale);
+    let heading_size = heading_size_for_region(geometry.scale, 360.0);
+    let top = readout.heading_baseline - heading_size / 2.0;
+    let bottom = readout.secondary_baselines[3] + sizes.status / 2.0;
+
+    assert_eq!(readout.secondary_baselines.len(), 4);
+    assert!(((top + bottom) / 2.0 - 480.0).abs() < f32::EPSILON);
+    assert!(
+        readout
+            .secondary_baselines
+            .windows(2)
+            .all(|pair| pair[0] < pair[1])
+    );
+    assert!(top >= 320.0);
+    assert!(bottom <= 640.0);
+}
+
+#[test]
 fn readings_are_centered_in_the_second_region() {
     for (width, height) in [(1600.0, 900.0), (900.0, 1600.0), (300.0, 299.0)] {
         let geometry = CompassGeometry::for_viewport(width, height);
-        let expected_x = if width > height {
-            width * 0.75
-        } else {
-            width * 0.5
+        let expected_x = match geometry.layout {
+            CompassLayout::CompactWide => width * 0.75,
+            CompassLayout::Stacked => width * 0.5,
         };
-        let expected_y = if width > height {
-            height * 0.5
-        } else {
-            height * 0.75
+        let expected_y = match geometry.layout {
+            CompassLayout::CompactWide => height * 0.5,
+            CompassLayout::Stacked => height * 0.75,
         };
         let sizes = typography(geometry.scale);
-        let region_width = if width > height { width / 2.0 } else { width };
+        let region_width = match geometry.layout {
+            CompassLayout::CompactWide => width / 2.0,
+            CompassLayout::Stacked => width,
+        };
         let heading_size = heading_size_for_region(geometry.scale, region_width);
         let readings_top = geometry.heading_baseline - heading_size / 2.0;
         let readings_bottom = geometry.status_baseline + sizes.status / 2.0;

@@ -21,7 +21,7 @@ cargo.write_text(
     ),
     encoding="utf-8",
 )
-metadata = Path("resources/io.github.cosmic_utils.compass.metainfo.xml")
+metadata = Path("resources/org.cosmic_utils.compass.metainfo.xml")
 text = metadata.read_text(encoding="utf-8")
 if f'release version="{version}"' not in text:
     entry = (

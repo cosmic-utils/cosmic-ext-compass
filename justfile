@@ -2,7 +2,7 @@
 
 name := 'compass'
 apk-pkgname := 'cosmic-ext-compass'
-export APPID := 'io.github.cosmic_utils.compass'
+export APPID := 'org.cosmic_utils.compass'
 rootdir := ''
 prefix := '/usr'
 base-dir := absolute_path(clean(rootdir / prefix))

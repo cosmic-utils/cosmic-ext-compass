@@ -9,8 +9,8 @@ from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parent.parent
 I18N = ROOT / "i18n"
-DESKTOP = ROOT / "resources/io.github.cosmic_utils.compass.desktop"
-METAINFO = ROOT / "resources/io.github.cosmic_utils.compass.metainfo.xml"
+DESKTOP = ROOT / "resources/org.cosmic_utils.compass.desktop"
+METAINFO = ROOT / "resources/org.cosmic_utils.compass.metainfo.xml"
 FTL = "compass.ftl"
 SOURCE = "en"
 NL = chr(10)
