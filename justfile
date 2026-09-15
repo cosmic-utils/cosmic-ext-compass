@@ -35,9 +35,9 @@ run *args:
 demo:
     env RUST_LOG=compass=info cargo run --profile release-fast -- --demo
 
-# Regenerate derived text, icons and dependency metadata. Preview screenshots
-# are intentionally separate because they require a pinned graphical container.
-generate: generate-metadata generate-icons flatpak-cargo-sources
+# Regenerate derived text and dependency metadata. Icons are generated explicitly
+# when their scalable source changes; preview screenshots require a graphical container.
+generate: generate-metadata flatpak-cargo-sources
 generate-metadata:
     python3 scripts/gen-metadata.py
 
