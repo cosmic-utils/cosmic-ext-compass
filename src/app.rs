@@ -103,6 +103,7 @@ pub enum Message {
     ToggleAbout,
     ToggleSettings,
     SetAppTheme(usize),
+    CosmicThemeChanged,
     ResetAllSettings,
 }
 
@@ -160,12 +161,37 @@ impl AppTheme {
     }
 
     fn theme(self) -> Theme {
-        match self {
-            Self::System => theme::system_preference(),
-            Self::Dark => Theme::dark(),
-            Self::Light => Theme::light(),
+        self.theme_for(is_cosmic_desktop())
+    }
+
+    fn theme_for(self, is_cosmic: bool) -> Theme {
+        if is_cosmic {
+            match self {
+                Self::System => theme::system_preference(),
+                Self::Dark => {
+                    let mut theme = theme::system_dark();
+                    theme.theme_type.prefer_dark(Some(true));
+                    theme
+                }
+                Self::Light => {
+                    let mut theme = theme::system_light();
+                    theme.theme_type.prefer_dark(Some(false));
+                    theme
+                }
+            }
+        } else {
+            match self {
+                Self::System => theme::system_preference(),
+                Self::Dark => Theme::dark(),
+                Self::Light => Theme::light(),
+            }
         }
     }
+}
+
+fn is_cosmic_desktop() -> bool {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .is_ok_and(|desktop| desktop.to_ascii_uppercase().contains("COSMIC"))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -457,6 +483,24 @@ impl Application for CompassApp {
             }
         }
 
+        if is_cosmic_desktop() {
+            let dark = self
+                .core()
+                .watch_config::<cosmic::cosmic_theme::Theme>(cosmic::cosmic_theme::DARK_THEME_ID)
+                .map(|_| Message::CosmicThemeChanged);
+            let light = self
+                .core()
+                .watch_config::<cosmic::cosmic_theme::Theme>(cosmic::cosmic_theme::LIGHT_THEME_ID)
+                .map(|_| Message::CosmicThemeChanged);
+            let mode = self
+                .core()
+                .watch_config::<cosmic::cosmic_theme::ThemeMode>(
+                    cosmic::cosmic_theme::THEME_MODE_ID,
+                )
+                .map(|_| Message::CosmicThemeChanged);
+            subscriptions.push(Subscription::batch([dark, light, mode]));
+        }
+
         Subscription::batch(subscriptions)
     }
 
@@ -497,6 +541,9 @@ impl Application for CompassApp {
                 };
                 self.app_theme = app_theme;
                 return cosmic::command::set_theme(app_theme.theme());
+            }
+            Message::CosmicThemeChanged => {
+                return cosmic::command::set_theme(self.app_theme.theme());
             }
             Message::ResetAllSettings => {
                 self.app_theme = AppTheme::default();
@@ -617,7 +664,22 @@ impl Application for CompassApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmic::theme::ThemeType;
     use cosmic::widget::menu::action::MenuAction as _;
+
+    #[test]
+    fn fixed_cosmic_themes_keep_their_mode_preference() {
+        for (app_theme, expected) in [(AppTheme::Dark, true), (AppTheme::Light, false)] {
+            let theme = app_theme.theme_for(true);
+            assert!(matches!(
+                theme.theme_type,
+                ThemeType::System {
+                    prefer_dark: Some(value),
+                    ..
+                } if value == expected
+            ));
+        }
+    }
 
     #[test]
     fn animated_demo_heading_moves_smoothly_in_both_directions() {

@@ -76,6 +76,18 @@ fn location_permissions_are_declared_for_native_and_flatpak_builds() {
 }
 
 #[test]
+fn flatpak_can_read_and_watch_the_cosmic_desktop_theme() {
+    let flatpak = std::fs::read_to_string("org.cosmic_utils.compass.yml")
+        .expect("Flatpak manifest should be readable");
+    let cargo = std::fs::read_to_string("Cargo.toml").expect("Cargo manifest should be readable");
+
+    assert!(flatpak.contains("--filesystem=xdg-config/cosmic:ro"));
+    assert!(flatpak.contains("--talk-name=com.system76.CosmicSettingsDaemon"));
+    assert!(flatpak.contains("--talk-name=com.system76.CosmicSettingsDaemon.*"));
+    assert!(cargo.contains("\"dbus-config\""));
+}
+
+#[test]
 fn title_bar_exposes_view_menu_and_about_drawer() {
     let mut app = initialized_app();
 

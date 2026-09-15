@@ -27,7 +27,7 @@ zbus = { version = "5.16.0", default-features = false, features = ["tokio"] }
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
 default-features = false
-features = ["a11y", "about", "tokio", "winit", "wayland", "x11", "wgpu"]
+features = ["a11y", "about", "dbus-config", "tokio", "winit", "wayland", "x11", "wgpu"]
 
 [profile.release]
 lto = "fat"

@@ -14,6 +14,9 @@ finish-args:
   - --share=ipc
   - --socket=fallback-x11
   - --device=dri
+  - --filesystem=xdg-config/cosmic:ro
+  - --talk-name=com.system76.CosmicSettingsDaemon
+  - --talk-name=com.system76.CosmicSettingsDaemon.*
   - --system-talk-name=net.hadess.SensorProxy
   - --system-talk-name=org.freedesktop.GeoClue2
 
