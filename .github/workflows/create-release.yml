@@ -10,6 +10,7 @@ on:
 
 jobs:
   create-tag:
+    name: Create Release Tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -55,3 +56,12 @@ jobs:
           fi
           git tag -a 'v${{ steps.version.outputs.version }}' -m 'Compass v${{ steps.version.outputs.version }}'
           git push origin 'v${{ steps.version.outputs.version }}'
+      - name: Summary
+        run: |
+          echo "## Release Created 🎉" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version:** ${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag:** v${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The [Release workflow](${{ github.server_url }}/${{ github.repository }}/actions/workflows/release.yml) will now build and publish the release." >> "$GITHUB_STEP_SUMMARY"
