@@ -6,7 +6,7 @@ A clean, responsive magnetic compass for Linux desktops and phones, built with [
   <img src="resources/icons/hicolor/scalable/apps/org.cosmic_utils.compass.svg" alt="Compass app icon" width="80">
 </p>
 
-<video src="preview/cosmic-compass-demo.mp4" controls title="Compass demo"></video>
+[▶ Watch the Compass demo](preview/cosmic-compass-demo.mp4)
 
 [View more screenshots](preview/README.md)
 
