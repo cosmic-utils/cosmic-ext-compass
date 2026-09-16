@@ -1,5 +1,9 @@
 # Compass
 
+[![Sponsor](https://img.shields.io/badge/sponsor-FreddyFunk-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/FreddyFunk)
+[![CI](https://github.com/cosmic-utils/cosmic-ext-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/cosmic-utils/cosmic-ext-compass/actions/workflows/ci.yml)
+[![Release](https://github.com/cosmic-utils/cosmic-ext-compass/actions/workflows/release.yml/badge.svg)](https://github.com/cosmic-utils/cosmic-ext-compass/actions/workflows/release.yml)
+
 A clean, responsive magnetic compass for Linux desktops and phones, built with [libcosmic](https://github.com/pop-os/libcosmic).
 
 <p>
