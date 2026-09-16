@@ -30,6 +30,11 @@ jobs:
           text = path.read_text()
           text = re.sub(r"runtime-version: '[^']+'", f"runtime-version: '{version}'", text)
           path.write_text(text)
+
+          path = Path('.github/workflows/release.yml')
+          text = path.read_text()
+          text = re.sub(r'//[0-9]{2}\.[0-9]{2}', f'//{version}', text)
+          path.write_text(text)
           PY
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
