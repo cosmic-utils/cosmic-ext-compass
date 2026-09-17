@@ -2,6 +2,7 @@
 <component type="desktop-application">
   <id>org.cosmic_utils.compass</id>
   <name>Compass</name>
+  <name xml:lang="de">Kompass</name>
   <summary>A responsive compass for Linux desktops and phones</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>

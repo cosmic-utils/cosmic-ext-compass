@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Compass
+Name[de]=Kompass
 Comment=Find magnetic north with a clear, responsive compass
 Keywords=compass;heading;direction;north;sensor;
 Exec=compass
