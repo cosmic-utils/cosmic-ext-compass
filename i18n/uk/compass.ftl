@@ -1,0 +1,12 @@
+compass = Компас
+view = Вид
+menu-about = Про Компас…
+settings-title = Налаштування
+settings-appearance = Вигляд
+settings-theme = Тема
+match-desktop = Системна
+dark = Темна
+light = Світла
+website = Сайт
+repository = Сховище
+support = Підтримка
