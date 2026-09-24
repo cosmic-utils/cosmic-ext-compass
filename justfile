@@ -26,9 +26,11 @@ cargo-check *args:
     cargo check --all-features {{args}}
 test *args:
     cargo test {{args}}
+test-preview-localization:
+    bash preview/test-localization-policy.sh
 clippy *args:
     cargo clippy --all-features {{args}} -- -D warnings
-check: fmt-check cargo-check test clippy
+check: fmt-check cargo-check test test-preview-localization clippy
 
 run *args:
     env RUST_LOG=compass=info cargo run --profile release-fast -- {{args}}
