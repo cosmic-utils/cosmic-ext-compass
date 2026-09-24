@@ -9,11 +9,14 @@ SHOTS_CONF="$SCRIPT_DIR/shots.conf"
 OUT_DIR="${1:-$SCRIPT_DIR}"
 WINDOW_TIMEOUT=60
 
+# shellcheck source=preview/locale-policy.sh
+source "$SCRIPT_DIR/locale-policy.sh"
+
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-for tool in sway swaymsg grim wtype jq identify dbus-daemon; do
+for tool in sway swaymsg grim wtype jq identify magick dbus-daemon; do
     command -v "$tool" >/dev/null || die "$tool is not installed"
 done
 [[ -f "$SHOTS_CONF" ]] || die "shot list not found: $SHOTS_CONF"
@@ -133,6 +136,16 @@ keep_log() {
     cp "$SESSION_DIR/compass-$1.log" "$OUT_DIR/compass-$1.log" 2>/dev/null || true
 }
 
+# Compare decoded pixels rather than PNG bytes, which may differ only in their
+# encoding metadata.
+images_identical() {
+    local share
+    share="$(magick "$1" "$2" -compose Difference -composite \
+        -colorspace Gray -threshold 2% -format '%[fx:mean]' info: 2>/dev/null || echo "")"
+    [[ -n "$share" ]] || return 1
+    awk -v s="$share" 'BEGIN { exit !(s == 0) }'
+}
+
 capture_shot() {
     local num="$1" window="$2" heading="$3" settle_ms="$4"
     local description="$5" theme="$6" out="$7"
@@ -191,10 +204,12 @@ if [[ "${LOCALES_FILTER:-}" != "none" ]]; then
     for dir in "$REPO_DIR"/i18n/*/; do
         locale="$(basename "$dir")"
         [[ "$locale" == "$BASE_LOCALE" || ! -f "$dir/compass.ftl" ]] && continue
+        catalog_has_messages "$dir/compass.ftl" || continue
         [[ -n "${LOCALES_FILTER:-}" && ",${LOCALES_FILTER}," != *",$locale,"* ]] && continue
         LOCALES+=("$locale")
     done
 fi
+log "Languages: ${LOCALES[*]}"
 
 for locale in "${LOCALES[@]}"; do
     export LANGUAGE="$locale" LANG="$locale.UTF-8"
@@ -205,6 +220,8 @@ for locale in "${LOCALES[@]}"; do
         locale_variants=("dark|dark")
         locale_dir="$OUT_DIR/locales/$locale"
         mkdir -p "$locale_dir"
+        locale_differs=0
+        locale_captures=0
     fi
     while IFS='|' read -r num window heading settle_ms description; do
         [[ -z "${num// }" || "${num:0:1}" == "#" ]] && continue
@@ -223,9 +240,21 @@ for locale in "${LOCALES[@]}"; do
                     "$description" "$theme" "$out"; then
                 failed=$((failed + 1))
                 [[ "${KEEP_GOING:-0}" == "1" ]] || die "preview-$num ($name, $locale) failed"
+                continue
+            fi
+            if [[ -n "$locale_dir" && -f "$OUT_DIR/preview-$num.png" ]]; then
+                locale_captures=$((locale_captures + 1))
+                if ! images_identical "$OUT_DIR/preview-$num.png" "$out"; then
+                    locale_differs=1
+                fi
             fi
         done
     done <"$SHOTS_CONF"
+    if [[ -n "$locale_dir" ]] && ((locale_captures > 0)) && \
+            ! locale_capture_changed "$locale" "$locale_differs"; then
+        failed=$((failed + 1))
+        [[ "${KEEP_GOING:-0}" == "1" ]] || die "$locale did not apply to visible UI"
+    fi
 done
 ((failed == 0)) || die "$failed screenshot(s) failed"
 log "All previews captured into $OUT_DIR"
