@@ -2,8 +2,14 @@
 <component type="desktop-application">
   <id>org.cosmic_utils.compass</id>
   <name>Compass</name>
+  <name xml:lang="cs">Kompas</name>
   <name xml:lang="de">Kompass</name>
+  <name xml:lang="sv">Kompass</name>
+  <name xml:lang="uk">Компас</name>
   <summary>A responsive compass for Linux desktops and phones</summary>
+  <summary xml:lang="cs">Responzivní kompas pro linuxové počítače a telefony</summary>
+  <summary xml:lang="sv">En responsiv kompass för Linux-skrivbord och  telefoner</summary>
+  <summary xml:lang="uk">Адаптивний компас для комп'ютерів і телефонів Linux</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <developer id="io.github.cosmic-utils">
@@ -11,6 +17,9 @@
   </developer>
   <description>
     <p>Compass displays magnetic heading from SensorProxy in a clean interface designed for compact phones and desktop windows.</p>
+    <p xml:lang="cs">Kompas zobrazuje magnetický směr ze SensorProxy v čistém rozhraní navrženém pro kompaktní telefony a desktopová okna.</p>
+    <p xml:lang="sv">Kompassen visar magnetisk kurs från SensorProxy i ett stilrent gränssnitt, utformat för kompakta telefoner och skrivbordsfönster.</p>
+    <p xml:lang="uk">Компас показує магнітний напрямок із SensorProxy у чистому інтерфейсі, розробленому для компактних екранів телефонів і великих стільничних екранів.</p>
   </description>
   <launchable type="desktop-id">org.cosmic_utils.compass.desktop</launchable>
   <url type="homepage">https://cosmic-utils.org</url>
@@ -23,10 +32,16 @@
     <screenshot type="default">
       <image>https://media.githubusercontent.com/media/cosmic-utils/cosmic-ext-compass/main/preview/preview-001.png</image>
       <caption>Compass heading and location readings on a desktop</caption>
+      <caption xml:lang="cs">Směr kompasu a údaje o poloze na desktopu</caption>
+      <caption xml:lang="sv">Avläsningar av kompasskurs och position på ett skrivbord</caption>
+      <caption xml:lang="uk">Напрямок компаса і дані про розташування на стільниці</caption>
     </screenshot>
     <screenshot>
       <image>https://media.githubusercontent.com/media/cosmic-utils/cosmic-ext-compass/main/preview/preview-002.png</image>
       <caption>Responsive compass layout on a Linux phone</caption>
+      <caption xml:lang="cs">Responzivní rozložení kompasu na linuxovém telefonu</caption>
+      <caption xml:lang="sv">Responsiv kompasslayout på en Linux-telefon</caption>
+      <caption xml:lang="uk">Адаптивний інтерфейс компаса на Linux-телефоні</caption>
     </screenshot>
   </screenshots>
   <releases>
