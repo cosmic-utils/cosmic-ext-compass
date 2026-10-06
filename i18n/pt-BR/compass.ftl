@@ -1,0 +1,10 @@
+repository = Repositório
+support = Suporte
+view = Exibir
+settings-theme = Tema
+settings-title = Configurações
+settings-appearance = Aparência
+match-desktop = Estilo do sistema
+dark = Estilo escuro
+light = Estilo claro
+settings-reset-all = Redefinir todas as configurações
