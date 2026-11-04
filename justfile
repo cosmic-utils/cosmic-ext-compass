@@ -95,18 +95,21 @@ get-version:
 flatpak-cargo-sources:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ ! -f flatpak-cargo-generator.py ]; then
-        curl -fLo flatpak-cargo-generator.py https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/de2225a6dee4818c1339b3cdbf29f90c471fcb7e/cargo/flatpak-cargo-generator.py
+    generator_sha256=0a2db6be87d75910facef28ab46d4d6460802e8419ab850d0caa6a364d26b380
+    if ! printf '%s  %s\n' "$generator_sha256" flatpak-cargo-generator.py | sha256sum --check --status 2>/dev/null; then
+        generator_tmp="$(mktemp)"
+        trap 'rm -f "$generator_tmp"' EXIT
+        curl -fLo "$generator_tmp" https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/41c20aa10819cdb2a4f3ca171758a96d1955c018/cargo/flatpak-cargo-generator.py
+        printf '%s  %s\n' "$generator_sha256" "$generator_tmp" | sha256sum --check --status
+        mv "$generator_tmp" flatpak-cargo-generator.py
     fi
-    if python3 -c 'import aiohttp,tomlkit' 2>/dev/null; then
-        python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
-    elif command -v uv >/dev/null 2>&1; then
-        uv run --with aiohttp==3.14.3 --with tomlkit==0.15.1 python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
+    if command -v uv >/dev/null 2>&1; then
+        uv run --no-project --with-requirements requirements-build.txt python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
     elif [ -x "$HOME/.hermes/bin/uv" ]; then
-        "$HOME/.hermes/bin/uv" run --with aiohttp==3.14.3 --with tomlkit==0.15.1 python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
+        "$HOME/.hermes/bin/uv" run --no-project --with-requirements requirements-build.txt python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
     else
         python3 -m venv .flatpak-venv
-        .flatpak-venv/bin/pip install --quiet aiohttp==3.14.3 tomlkit==0.15.1
+        .flatpak-venv/bin/python -m pip install --quiet --requirement requirements-build.txt
         .flatpak-venv/bin/python flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
     fi
 

@@ -9,15 +9,18 @@ RUN apk add --no-cache \
     wayland-dev \
     libxkbcommon-dev
 
-ARG RUST_VERSION=1.98.0
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH="/usr/local/cargo/bin:${PATH}"
-# Pin the rustup 1.29.3 installer; sh.rustup.rs changes independently of its checksum.
-RUN curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/rust-lang/rustup/edbc831cec44dc2858a4a4dce768c74361d027dc/rustup-init.sh -o /tmp/rustup-init.sh && \
-    printf '%s  %s\n' d890e2fef6fa991b19cde2e608199bc1dca4e37f41f884edf8849ff693048de6 /tmp/rustup-init.sh | sha256sum -c - && \
-    sh /tmp/rustup-init.sh -y --default-toolchain "${RUST_VERSION}" --target x86_64-unknown-linux-musl && \
-    rm /tmp/rustup-init.sh
+COPY rust-toolchain.toml /tmp/rust-toolchain.toml
+# Pin the installer itself, not the mutable sh.rustup.rs bootstrap script.
+RUN RUST_VERSION="$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/rust-toolchain.toml)" && \
+    test -n "${RUST_VERSION}" && \
+    curl --proto '=https' --tlsv1.2 -fsSL https://static.rust-lang.org/rustup/archive/1.29.3/x86_64-unknown-linux-musl/rustup-init -o /tmp/rustup-init && \
+    printf '%s  %s\n' 1552169aba2836777136ccff7a381e95c17233b5d8250cd5e10ae3cb971bfcfc /tmp/rustup-init | sha256sum -c - && \
+    chmod +x /tmp/rustup-init && \
+    /tmp/rustup-init -y --default-toolchain "${RUST_VERSION}" --target x86_64-unknown-linux-musl && \
+    rm /tmp/rustup-init /tmp/rust-toolchain.toml
 
 ENV CC_x86_64_unknown_linux_musl=gcc \
     PKG_CONFIG_ALLOW_CROSS=1 \
