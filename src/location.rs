@@ -3,7 +3,7 @@
 use cosmic::iced::{Subscription, stream};
 use futures::{SinkExt, StreamExt};
 use std::{any::TypeId, time::Duration};
-use zbus::zvariant::OwnedObjectPath;
+use zbus::OwnedObjectPath;
 
 const SERVICE: &str = "org.freedesktop.GeoClue2";
 const MANAGER_PATH: &str = "/org/freedesktop/GeoClue2/Manager";
@@ -122,7 +122,6 @@ async fn monitor(output: &mut futures::channel::mpsc::Sender<LocationEvent>) -> 
         .map_err(|error| error.to_string())?;
     let client = GeoClueClientProxy::builder(&connection)
         .path(client_path.clone())
-        .map_err(|error| error.to_string())?
         .build()
         .await
         .map_err(|error| error.to_string())?;
@@ -179,14 +178,12 @@ async fn emit_location(
     path: OwnedObjectPath,
     output: &mut futures::channel::mpsc::Sender<LocationEvent>,
 ) {
-    let proxy = match GeoClueLocationProxy::builder(connection).path(path) {
-        Ok(builder) => match builder.build().await {
-            Ok(proxy) => proxy,
-            Err(error) => {
-                let _ = output.send(LocationEvent::Failed(error.to_string())).await;
-                return;
-            }
-        },
+    let proxy = match GeoClueLocationProxy::builder(connection)
+        .path(path)
+        .build()
+        .await
+    {
+        Ok(proxy) => proxy,
         Err(error) => {
             let _ = output.send(LocationEvent::Failed(error.to_string())).await;
             return;
