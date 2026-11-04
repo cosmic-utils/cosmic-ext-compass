@@ -7,7 +7,7 @@ license = "GPL-3.0-only"
 description = "A responsive compass for Linux desktops and phones"
 homepage = "https://cosmic-utils.org"
 repository = "https://github.com/cosmic-utils/cosmic-ext-compass"
-authors = ["Frederic Laing <frederic.laing.development@gmail.com>"]
+authors = ["Frederic Laing <dev@fredfunk.tech>"]
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
