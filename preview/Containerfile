@@ -16,8 +16,16 @@ RUN dnf install -y --setopt=install_weak_deps=False \
 
 # Seed the actual COSMIC light and dark defaults instead of libcosmic's fallback
 # palette. Installing cosmic-settings would pull in the whole settings app.
+# Updates mirrors discard superseded builds. Fetch this exact build from Fedora
+# Koji instead, and verify its bytes before extracting the theme. Keep the
+# download plugin installed to preserve the existing resolved environment lock.
 RUN dnf install -y --setopt=install_weak_deps=False 'dnf-command(download)' cpio \
-    && dnf download --destdir /tmp/cosmic-theme cosmic-settings-1.8.0-1.fc44.x86_64 \
+    && mkdir -p /tmp/cosmic-theme \
+    && curl --fail --location --retry 3 \
+         --output /tmp/cosmic-theme/cosmic-settings-1.8.0-1.fc44.x86_64.rpm \
+         https://kojipkgs.fedoraproject.org/packages/cosmic-settings/1.8.0/1.fc44/x86_64/cosmic-settings-1.8.0-1.fc44.x86_64.rpm \
+    && echo 'b3de6e218758ee3650cd177be6d3a67379d79e89c97a43810a89a5a9054f8672  /tmp/cosmic-theme/cosmic-settings-1.8.0-1.fc44.x86_64.rpm' \
+         | sha256sum --check --strict \
     && ( cd / && rpm2cpio /tmp/cosmic-theme/cosmic-settings-*.rpm \
            | cpio -idmv './usr/share/cosmic/com.system76.CosmicTheme.*' ) \
     && test -f /usr/share/cosmic/com.system76.CosmicTheme.Dark/v1/accent \

@@ -56,7 +56,7 @@ The Flatpak manifest grants Wayland, fallback X11, DRI, network access for Nomin
 
 The repository includes Flatpak, Alpine APK, cross-compilation, CI, and release blueprints. Run `just generate` after dependency or translation changes to refresh derived metadata and Flatpak Cargo sources.
 
-Dependabot checks Cargo dependencies and GitHub Actions daily at 06:00 UTC. libcosmic updates remain individual PRs; other Cargo minor and patch updates are grouped, while major updates stay separate. Cargo updates increase manifest requirements as well as the lockfile. Rust toolchain and Python build dependencies are checked weekly on Mondays. Updates still require review and passing CI.
+Dependabot checks Cargo dependencies and GitHub Actions daily at 06:00 UTC. libcosmic updates remain individual PRs; other Cargo minor and patch updates are grouped, while major updates stay separate. Cargo uses the `auto` strategy: compatible releases update the lockfile; manifest requirements change when needed to allow a new release. Rust toolchain and Python build dependencies are checked weekly on Mondays. Updates still require review and passing CI.
 
 `rust-toolchain.toml` is the compiler-version source for CI and the musl build images. `Cargo.toml` keeps the minimum supported Rust version separately, and the deterministic preview environment retains its own package lock. `requirements-build.txt` supplies the Python dependencies for both local Flatpak source generation and CI; the local recipe uses an isolated uv environment or a virtualenv rather than arbitrary preinstalled modules.
 
