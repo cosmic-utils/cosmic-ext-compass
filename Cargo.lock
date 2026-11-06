@@ -936,7 +936,7 @@ dependencies = [
 
 [[package]]
 name = "compass"
-version = "0.1.2"
+version = "1.11.0"
 dependencies = [
  "clap",
  "futures",
