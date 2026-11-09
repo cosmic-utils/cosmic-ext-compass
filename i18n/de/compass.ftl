@@ -1,15 +1,15 @@
 compass = Kompass
 view = Ansicht
-menu-settings = Einstellungen…
-menu-about = Über Kompass…
+menu-settings = Einstellungen …
+menu-about = Über Kompass …
 settings-title = Einstellungen
-settings-appearance = Erscheinungsbild
+settings-appearance = Aussehen
 settings-theme = Design
 match-desktop = An Desktop anpassen
 dark = Dunkel
 light = Hell
 settings-reset-all = Alle Einstellungen zurücksetzen
-website = Webseite
+website = Website
 repository = Repository
 support = Unterstützung
 status-connecting = Verbindung zum Magnetometer wird hergestellt…
@@ -28,7 +28,6 @@ location-elevation = Höhe { $meters } m
 location-elevation-unavailable = Keine Höhenangabe
 osm-attribution = © OpenStreetMap-Mitwirkende
 osm-data-credit = OpenStreetMap-Daten (ODbL)
-
 desktop-comment = Mit einem übersichtlichen, responsiven Kompass den magnetischen Norden finden
 desktop-keywords = Kompass;Kurs;Richtung;Norden;Sensor;
 metainfo-summary = Ein responsiver Kompass für Linux-Desktops und -Telefone
