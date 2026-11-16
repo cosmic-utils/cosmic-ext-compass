@@ -6171,40 +6171,40 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rust-embed/rust-embed-8.13.0.crate",
-        "sha256": "19afa5b4b6a611de00bd1bdae6ae6f39084c9399f0679c3f52d8469cf335cc23",
-        "dest": "cargo/vendor/rust-embed-8.13.0"
+        "url": "https://static.crates.io/crates/rust-embed/rust-embed-8.14.0.crate",
+        "sha256": "e98f580cf7a2863aeb6827800283f52cbe6fb3f3bb7c1843783f903c16dcb8ad",
+        "dest": "cargo/vendor/rust-embed-8.14.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"19afa5b4b6a611de00bd1bdae6ae6f39084c9399f0679c3f52d8469cf335cc23\", \"files\": {}}",
-        "dest": "cargo/vendor/rust-embed-8.13.0",
+        "contents": "{\"package\": \"e98f580cf7a2863aeb6827800283f52cbe6fb3f3bb7c1843783f903c16dcb8ad\", \"files\": {}}",
+        "dest": "cargo/vendor/rust-embed-8.14.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rust-embed-impl/rust-embed-impl-8.13.0.crate",
-        "sha256": "e0d8afda6374eac59e066abee06d265247ebbaf3006cf878e2879e8356e34053",
-        "dest": "cargo/vendor/rust-embed-impl-8.13.0"
+        "url": "https://static.crates.io/crates/rust-embed-impl/rust-embed-impl-8.14.0.crate",
+        "sha256": "a93e2f69cf224a6c7df7509aa5ba4a23f56828ee41b040e92ac8762371eb9ba7",
+        "dest": "cargo/vendor/rust-embed-impl-8.14.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"e0d8afda6374eac59e066abee06d265247ebbaf3006cf878e2879e8356e34053\", \"files\": {}}",
-        "dest": "cargo/vendor/rust-embed-impl-8.13.0",
+        "contents": "{\"package\": \"a93e2f69cf224a6c7df7509aa5ba4a23f56828ee41b040e92ac8762371eb9ba7\", \"files\": {}}",
+        "dest": "cargo/vendor/rust-embed-impl-8.14.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rust-embed-utils/rust-embed-utils-8.13.0.crate",
-        "sha256": "0d84e8ba78bd384263e5922f084cbe1b081c3b7e69add59c8fb097b879ba968a",
-        "dest": "cargo/vendor/rust-embed-utils-8.13.0"
+        "url": "https://static.crates.io/crates/rust-embed-utils/rust-embed-utils-8.14.0.crate",
+        "sha256": "915e33dccbe7deb2b8a342dc4c517503fe85e0230ddbae40a4fb0220493dad9b",
+        "dest": "cargo/vendor/rust-embed-utils-8.14.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"0d84e8ba78bd384263e5922f084cbe1b081c3b7e69add59c8fb097b879ba968a\", \"files\": {}}",
-        "dest": "cargo/vendor/rust-embed-utils-8.13.0",
+        "contents": "{\"package\": \"915e33dccbe7deb2b8a342dc4c517503fe85e0230ddbae40a4fb0220493dad9b\", \"files\": {}}",
+        "dest": "cargo/vendor/rust-embed-utils-8.14.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {
